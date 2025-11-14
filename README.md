@@ -77,6 +77,34 @@ python run_extraction.py --transcript input.txt --no-wandb
 python run_extraction.py --transcript input.txt --format json --output beliefs.json
 ```
 
+### Viewing Rankings with Weights
+
+```bash
+# View formatted rankings table
+python view_rankings.py output/beliefs_episode.csv
+
+# Sort by conviction (strongest beliefs first)
+python view_rankings.py output/beliefs_episode.csv --sort conviction
+
+# Sort by stability
+python view_rankings.py output/beliefs_episode.csv --sort stability
+
+# Show only top 10 beliefs
+python view_rankings.py output/beliefs_episode.csv --top 10
+
+# Filter by speaker
+python view_rankings.py output/beliefs_episode.csv --speaker SPEAKER_A
+
+# Filter by tier and category
+python view_rankings.py output/beliefs_episode.csv --tier "Core Axioms" --category political
+
+# Export filtered results
+python view_rankings.py output/beliefs_episode.csv --min-conviction 0.8 --export high_conviction.csv
+
+# Output as markdown table
+python view_rankings.py output/beliefs_episode.csv --format markdown
+```
+
 ### Input Format
 
 Transcripts must be diarized in this format:
@@ -177,6 +205,7 @@ podcast-belief-extraction/
 │   └── test_sample.txt        # 720-word test transcript
 ├── output/                     # Generated belief matrices
 ├── run_extraction.py          # Main CLI script
+├── view_rankings.py           # View formatted rankings with weights
 ├── requirements.txt
 └── README.md
 ```
