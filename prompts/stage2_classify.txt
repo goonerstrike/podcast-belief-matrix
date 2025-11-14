@@ -1,0 +1,91 @@
+You are an expert at classifying belief statements from podcast transcripts into a hierarchical belief matrix.
+
+STATEMENT TO CLASSIFY:
+Speaker: {speaker_id}
+Timestamp: {timestamp}
+Text: "{statement_text}"
+
+This statement has already been confirmed as a BELIEF. Now classify it in detail.
+
+CLASSIFICATION QUESTIONS:
+
+=== CONVICTION INDICATORS (Q5-7) ===
+5. Does the wording indicate strong or absolute commitment (e.g., "always/never/must/cannot")? (yes/no)
+6. Does the surrounding context suggest the speaker repeats or consistently relies on this belief? (yes/no)
+7. Does the speaker defend or justify this belief against alternatives or objections? (yes/no)
+
+=== BELIEF TYPE (Q8-13) ===
+8. Is this belief about the fundamental nature of reality, human nature, purpose, or the structure of existence? (yes/no)
+9. Is this belief about how truth/knowledge should be formed, who/what to trust, or how to evaluate information? (yes/no)
+10. Is this belief about broad moral principles of right/wrong or good/bad that apply across many situations? (yes/no)
+11. Is this belief a cross-domain principle or rule the speaker applies in multiple areas of life? (yes/no)
+12. Is this belief primarily about large-scale systems/institutions (state, markets, money, religion, tech, law, etc.) that shapes many of their views? (yes/no)
+13. Is this belief mainly about one specific domain (e.g., Bitcoin, real estate, AI, health, education, geopolitics)? (yes/no)
+
+=== CLAIM TYPE (Q14-15) ===
+14. Is this statement a concrete, testable, or time-bound claim (prediction, number, causal claim, empirical assertion)? (yes/no)
+15. Is this statement best interpreted as a casual preference, offhand comment, joke, brand line, or exploratory musing? (yes/no)
+
+=== TIER CLASSIFICATION (Q16-26) ===
+Based on the above, which tier does this belief belong to?
+
+16. Should this be labeled as a **Core Axiom** (foundational, cross-domain, defended, stable)? (yes/no)
+17. Should this be labeled as a **Worldview Pillar** (big-picture moral/political/economic/epistemic/spiritual frame)? (yes/no)
+18. Should this be labeled as an **Identity-Defining Value** ("this is who I am / we are")? (yes/no)
+19. Should this be labeled as a **Meta-Principle** (rule for how to choose/update beliefs)? (yes/no)
+20. Should this be labeled as a **Cross-Domain Rule or Heuristic** (action rule used in many contexts)? (yes/no)
+21. Should this be labeled as a **Stable Domain Belief** (consistent stance within one topic)? (yes/no)
+22. Should this be labeled as a **Repeated Strategy or Playbook** (tactic the speaker endorses/uses)? (yes/no)
+23. Should this be labeled as a **Concrete Claim or Prediction**? (yes/no)
+24. Should this be labeled as a **Situational Opinion tied to a narrow context**? (yes/no)
+25. Should this be labeled as a **Loose Take / Joke / Aesthetic Vibe**? (yes/no)
+
+26. What is the SINGLE BEST-FITTING tier? (choose ONE from Q16-25)
+
+=== SCORING (Q27-28) ===
+27. On a 0–1 scale, how strong is the speaker's conviction in this belief? (0.0-1.0)
+28. On a 0–1 scale, how stable/long-term does this belief appear given the context? (0.0-1.0)
+
+=== CATEGORIZATION (Q29-31) ===
+29. What is the single best-fitting category label for this belief?
+    (Choose ONE: epistemic, moral, political, economic, spiritual, social, tech, health, bitcoin/finance, other)
+
+30. In one short phrase, what higher-level belief or axiom does this belief most likely instantiate or rely on?
+    (This is the "parent_hint" - leave empty if this seems foundational)
+
+31. Does this belief explicitly reject or oppose another belief/group/position (i.e., define an in-group vs out-group)? (yes/no)
+
+RESPOND IN THIS EXACT JSON FORMAT:
+{
+  "q5_strong_commitment": true/false,
+  "q6_repeated_consistently": true/false,
+  "q7_defended_justified": true/false,
+  "q8_fundamental_nature": true/false,
+  "q9_epistemic_trust": true/false,
+  "q10_moral_principles": true/false,
+  "q11_cross_domain_principle": true/false,
+  "q12_large_systems": true/false,
+  "q13_specific_domain": true/false,
+  "q14_concrete_testable": true/false,
+  "q15_casual_joke": true/false,
+  "tier_name": "Core Axioms|Worldview Pillars|Identity-Defining Values|Meta-Principles|Cross-Domain Rules & Heuristics|Stable Domain Beliefs|Repeated Strategies & Playbooks|Concrete Claims & Predictions|Situational Opinions|Loose Takes / Jokes / Vibes",
+  "importance": 1-10,
+  "conviction_score": 0.0-1.0,
+  "stability_score": 0.0-1.0,
+  "category": "epistemic|moral|political|economic|spiritual|social|tech|health|bitcoin/finance|other",
+  "parent_hint": "string or empty",
+  "defines_outgroup": true/false
+}
+
+IMPORTANCE SCALE (1-10):
+1 = Core Axiom (most foundational)
+2 = Worldview Pillar
+3 = Identity-Defining Value
+4 = Meta-Principle
+5 = Cross-Domain Rule
+6 = Stable Domain Belief
+7 = Repeated Strategy
+8 = Concrete Claim
+9 = Situational Opinion
+10 = Loose Take/Joke (least foundational)
+
