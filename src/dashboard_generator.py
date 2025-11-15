@@ -22,8 +22,10 @@ def generate_dashboard_html(csv_path: str, output_html_path: str, episode_id: st
     # Read CSV data
     df = pd.read_csv(csv_path)
     
-    # Convert to JSON for embedding (records format for easy parsing)
-    beliefs_json = df.to_json(orient='records', indent=2)
+    # Convert to JSON for embedding with proper escaping
+    import json
+    records = df.to_dict(orient='records')
+    beliefs_json = json.dumps(records, indent=2, ensure_ascii=False)
     
     # Get metadata
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
