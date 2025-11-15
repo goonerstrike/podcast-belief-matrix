@@ -88,24 +88,30 @@ def generate_dashboard_html(csv_path: str, output_html_path: str, episode_id: st
     )
     
     # Embed the data and auto-trigger analysis
-    # Replace the file upload handler with embedded data
-    embedded_data_script = f"""
-        // Embedded belief data
-        let beliefsData = {beliefs_json};
-        
+    # Replace the original empty beliefsData with our embedded data
+    modified_html = modified_html.replace(
+        'let beliefsData = [];',
+        f'let beliefsData = {beliefs_json};'
+    )
+    
+    # Add auto-analyze script
+    auto_analyze_script = """
         // Auto-analyze on page load
-        window.addEventListener('DOMContentLoaded', function() {{
+        window.addEventListener('DOMContentLoaded', function() {
             console.log('Dashboard loaded with', beliefsData.length, 'beliefs');
-            analyzeBeliefs();
-        }});
+            if (beliefsData.length > 0) {
+                analyzeBeliefs();
+            } else {
+                console.error('No beliefs data found!');
+            }
+        });
     """
     
-    # Insert embedded data script before the closing </script> tag
-    # Find the last </script> before </body>
+    # Insert auto-analyze script before the closing </script> tag
     script_insert_pos = modified_html.rfind('</script>')
     modified_html = (
         modified_html[:script_insert_pos] + 
-        '\n' + embedded_data_script + '\n' +
+        '\n' + auto_analyze_script + '\n' +
         modified_html[script_insert_pos:]
     )
     
