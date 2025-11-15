@@ -112,8 +112,6 @@ class BeliefExtractor:
             }
             records.append(record)
         
-        df = pd.DataFrame(records)
-        
         # Ensure correct column order
         columns = [
             'belief_id', 'speaker_id', 'episode_id', 'timestamp',
@@ -122,6 +120,11 @@ class BeliefExtractor:
             'parent_belief_id'
         ]
         
+        if not records:
+            # Return empty dataframe with correct columns
+            return pd.DataFrame(columns=columns)
+        
+        df = pd.DataFrame(records)
         return df[columns]
     
     def save_output(self, df: pd.DataFrame, output_path: str,

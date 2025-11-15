@@ -233,6 +233,10 @@ class WandbLogger:
         Args:
             df: Beliefs DataFrame
         """
+        if df.empty:
+            print(f"⚠️  Skipping visualizations (no beliefs found)")
+            return
+        
         print(f"📊 Creating visualizations...")
         
         self.log_tier_distribution(df)

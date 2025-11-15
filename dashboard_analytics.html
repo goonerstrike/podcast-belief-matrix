@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Belief Analytics Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            padding: 20px;
+        }
+
+        .dashboard {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .file-upload {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .upload-area {
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .upload-area:hover {
+            background: #f0f4ff;
+            border-color: #764ba2;
+        }
+
+        .upload-area.dragover {
+            background: #e0e7ff;
+            border-color: #764ba2;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-value {
+            font-size: 36px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .viz-container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .viz-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+        }
+
+        .belief-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .belief-table th {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .belief-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .belief-table tr:hover {
+            background: #f9fafb;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            display: none;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .insights-panel {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+
+        .insights-panel h3 {
+            margin-bottom: 15px;
+            font-size: 22px;
+        }
+
+        .insights-panel ul {
+            list-style: none;
+        }
+
+        .insights-panel li {
+            padding: 10px 0;
+            padding-left: 25px;
+            position: relative;
+        }
+
+        .insights-panel li:before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            font-weight: bold;
+        }
+
+        #content {
+            display: none;
+        }
+
+        #content.active {
+            display: block;
+        }
+
+        .score-bar {
+            display: inline-block;
+            width: 100px;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            vertical-align: middle;
+        }
+
+        .score-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, #059669);
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="header">
+            <h1>📊 Belief Analytics Dashboard</h1>
+            <p class="subtitle">Multi-Level Belief Matrix Analysis</p>
+        </div>
+
+        <div class="file-upload">
+            <div class="upload-area" id="uploadArea">
+                <h2>📁 Upload Belief CSV</h2>
+                <p>Click or drag and drop your beliefs CSV file here</p>
+                <input type="file" id="fileInput" accept=".csv">
+            </div>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Analyzing beliefs...</p>
+        </div>
+
+        <div id="content">
+            <!-- Stats Grid -->
+            <div class="stats-grid" id="statsGrid"></div>
+
+            <!-- Insights Panel -->
+            <div class="insights-panel" id="insightsPanel"></div>
+
+            <!-- Visualizations -->
+            <div class="grid-2">
+                <div class="viz-container">
+                    <div class="viz-title">Belief Distribution by Tier</div>
+                    <div id="tierChart"></div>
+                </div>
+                <div class="viz-container">
+                    <div class="viz-title">Belief Distribution by Category</div>
+                    <div id="categoryChart"></div>
+                </div>
+            </div>
+
+            <div class="viz-container">
+                <div class="viz-title">Conviction vs Stability by Tier</div>
+                <div id="scatterChart"></div>
+            </div>
+
+            <div class="grid-2">
+                <div class="viz-container">
+                    <div class="viz-title">Belief Strength Distribution</div>
+                    <div id="strengthChart"></div>
+                </div>
+                <div class="viz-container">
+                    <div class="viz-title">Rigidity Score Distribution</div>
+                    <div id="rigidityChart"></div>
+                </div>
+            </div>
+
+            <div class="viz-container">
+                <div class="viz-title">Top Keystone Beliefs</div>
+                <table class="belief-table" id="keystoneTable"></table>
+            </div>
+
+            <div class="viz-container">
+                <div class="viz-title">Vulnerable Beliefs (High Conviction, Low Stability)</div>
+                <table class="belief-table" id="vulnerableTable"></table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let beliefsData = [];
+
+        // File upload handling
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file) processFile(file);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) processFile(file);
+        });
+
+        function processFile(file) {
+            document.getElementById('loading').classList.add('active');
+
+            Papa.parse(file, {
+                header: true,
+                dynamicTyping: true,
+                complete: function(results) {
+                    beliefsData = results.data;
+                    analyzeBeliefs();
+                    document.getElementById('loading').classList.remove('active');
+                    document.getElementById('content').classList.add('active');
+                }
+            });
+        }
+
+        function analyzeBeliefs() {
+            // Calculate derived metrics
+            beliefsData = beliefsData.map(belief => {
+                belief.belief_strength = belief.conviction_score * belief.stability_score;
+                belief.foundational_weight = (11 - belief.importance) * belief.conviction_score;
+                belief.rigidity_score = belief.conviction_score * belief.stability_score * (11 - belief.importance);
+                belief.certainty_gap = belief.conviction_score - belief.stability_score;
+                return belief;
+            });
+
+            // Display statistics
+            displayStats();
+            
+            // Generate insights
+            displayInsights();
+            
+            // Create visualizations
+            createTierChart();
+            createCategoryChart();
+            createScatterChart();
+            createStrengthChart();
+            createRigidityChart();
+            createKeystoneTable();
+            createVulnerableTable();
+        }
+
+        function displayStats() {
+            const total = beliefsData.length;
+            const avgConviction = beliefsData.reduce((sum, b) => sum + b.conviction_score, 0) / total;
+            const avgStability = beliefsData.reduce((sum, b) => sum + b.stability_score, 0) / total;
+            const avgStrength = beliefsData.reduce((sum, b) => sum + b.belief_strength, 0) / total;
+            const avgRigidity = beliefsData.reduce((sum, b) => sum + b.rigidity_score, 0) / total;
+            const uniqueSpeakers = [...new Set(beliefsData.map(b => b.speaker_id))].length;
+
+            const statsHTML = `
+                <div class="stat-card">
+                    <div class="stat-value">${total}</div>
+                    <div class="stat-label">Total Beliefs</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${avgConviction.toFixed(2)}</div>
+                    <div class="stat-label">Avg Conviction</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${avgStability.toFixed(2)}</div>
+                    <div class="stat-label">Avg Stability</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${avgStrength.toFixed(2)}</div>
+                    <div class="stat-label">Avg Strength</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${avgRigidity.toFixed(2)}</div>
+                    <div class="stat-label">Avg Rigidity</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${uniqueSpeakers}</div>
+                    <div class="stat-label">Speakers</div>
+                </div>
+            `;
+
+            document.getElementById('statsGrid').innerHTML = statsHTML;
+        }
+
+        function displayInsights() {
+            // Find core worldview
+            const coreBeliefs = beliefsData.filter(b => b.importance <= 3 && b.stability_score > 0.9);
+            
+            // Find vulnerabilities
+            const vulnerableBeliefs = beliefsData.filter(b => b.conviction_score > 0.8 && b.stability_score < 0.6);
+            
+            // Find dominant category
+            const categoryCounts = {};
+            beliefsData.forEach(b => {
+                categoryCounts[b.category] = (categoryCounts[b.category] || 0) + 1;
+            });
+            const dominantCategory = Object.keys(categoryCounts).reduce((a, b) => 
+                categoryCounts[a] > categoryCounts[b] ? a : b
+            );
+            const dominantPct = (categoryCounts[dominantCategory] / beliefsData.length * 100).toFixed(1);
+
+            const insightsHTML = `
+                <h3>🔍 Key Insights</h3>
+                <ul>
+                    <li><strong>${coreBeliefs.length} Core Worldview Beliefs</strong> - Foundational principles with high stability</li>
+                    <li><strong>${vulnerableBeliefs.length} Vulnerable Beliefs</strong> - Strong convictions with low stability (potential for change)</li>
+                    <li><strong>${dominantCategory.charAt(0).toUpperCase() + dominantCategory.slice(1)} Domain Focus</strong> - ${dominantPct}% of beliefs are about ${dominantCategory}</li>
+                    <li><strong>Average Rigidity: ${(beliefsData.reduce((sum, b) => sum + b.rigidity_score, 0) / beliefsData.length).toFixed(2)}</strong> - ${getRigidityInterpretation()}</li>
+                </ul>
+            `;
+
+            document.getElementById('insightsPanel').innerHTML = insightsHTML;
+        }
+
+        function getRigidityInterpretation() {
+            const avgRigidity = beliefsData.reduce((sum, b) => sum + b.rigidity_score, 0) / beliefsData.length;
+            if (avgRigidity > 7) return "High resistance to belief change";
+            if (avgRigidity > 4) return "Balanced between conviction and flexibility";
+            return "Open to belief revision";
+        }
+
+        function createTierChart() {
+            const tierCounts = {};
+            beliefsData.forEach(b => {
+                tierCounts[b.tier_name] = (tierCounts[b.tier_name] || 0) + 1;
+            });
+
+            const data = [{
+                x: Object.keys(tierCounts),
+                y: Object.values(tierCounts),
+                type: 'bar',
+                marker: { color: '#667eea' }
+            }];
+
+            const layout = {
+                xaxis: { title: 'Tier' },
+                yaxis: { title: 'Count' },
+                height: 400
+            };
+
+            Plotly.newPlot('tierChart', data, layout);
+        }
+
+        function createCategoryChart() {
+            const categoryCounts = {};
+            beliefsData.forEach(b => {
+                categoryCounts[b.category] = (categoryCounts[b.category] || 0) + 1;
+            });
+
+            const data = [{
+                values: Object.values(categoryCounts),
+                labels: Object.keys(categoryCounts),
+                type: 'pie',
+                marker: { colors: ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#00f2fe', '#43e97b'] }
+            }];
+
+            const layout = { height: 400 };
+
+            Plotly.newPlot('categoryChart', data, layout);
+        }
+
+        function createScatterChart() {
+            const data = [{
+                x: beliefsData.map(b => b.conviction_score),
+                y: beliefsData.map(b => b.stability_score),
+                mode: 'markers',
+                type: 'scatter',
+                marker: {
+                    size: beliefsData.map(b => (11 - b.importance) * 3),
+                    color: beliefsData.map(b => b.importance),
+                    colorscale: 'Viridis',
+                    showscale: true
+                },
+                text: beliefsData.map(b => b.statement_text),
+                hovertemplate: '<b>%{text}</b><br>Conviction: %{x:.2f}<br>Stability: %{y:.2f}<extra></extra>'
+            }];
+
+            const layout = {
+                xaxis: { title: 'Conviction Score' },
+                yaxis: { title: 'Stability Score' },
+                height: 500
+            };
+
+            Plotly.newPlot('scatterChart', data, layout);
+        }
+
+        function createStrengthChart() {
+            const data = [{
+                x: beliefsData.map(b => b.belief_strength),
+                type: 'histogram',
+                marker: { color: '#667eea' }
+            }];
+
+            const layout = {
+                xaxis: { title: 'Belief Strength' },
+                yaxis: { title: 'Count' },
+                height: 400
+            };
+
+            Plotly.newPlot('strengthChart', data, layout);
+        }
+
+        function createRigidityChart() {
+            const data = [{
+                x: beliefsData.map(b => b.rigidity_score),
+                type: 'histogram',
+                marker: { color: '#764ba2' }
+            }];
+
+            const layout = {
+                xaxis: { title: 'Rigidity Score' },
+                yaxis: { title: 'Count' },
+                height: 400
+            };
+
+            Plotly.newPlot('rigidityChart', data, layout);
+        }
+
+        function createKeystoneTable() {
+            // Sort by foundational weight
+            const keystones = beliefsData
+                .sort((a, b) => b.foundational_weight - a.foundational_weight)
+                .slice(0, 5);
+
+            let html = `
+                <thead>
+                    <tr>
+                        <th>Statement</th>
+                        <th>Tier</th>
+                        <th>Conviction</th>
+                        <th>Weight</th>
+                    </tr>
+                </thead>
+                <tbody>
+            `;
+
+            keystones.forEach(belief => {
+                html += `
+                    <tr>
+                        <td>${belief.statement_text.substring(0, 80)}...</td>
+                        <td>${belief.tier_name}</td>
+                        <td>
+                            <div class="score-bar">
+                                <div class="score-bar-fill" style="width: ${belief.conviction_score * 100}%"></div>
+                            </div>
+                            ${belief.conviction_score.toFixed(2)}
+                        </td>
+                        <td>${belief.foundational_weight.toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody>';
+            document.getElementById('keystoneTable').innerHTML = html;
+        }
+
+        function createVulnerableTable() {
+            const vulnerable = beliefsData
+                .filter(b => b.conviction_score > 0.8 && b.stability_score < 0.6)
+                .slice(0, 5);
+
+            let html = `
+                <thead>
+                    <tr>
+                        <th>Statement</th>
+                        <th>Conviction</th>
+                        <th>Stability</th>
+                        <th>Gap</th>
+                    </tr>
+                </thead>
+                <tbody>
+            `;
+
+            if (vulnerable.length === 0) {
+                html += '<tr><td colspan="4" style="text-align:center;">No vulnerable beliefs detected</td></tr>';
+            } else {
+                vulnerable.forEach(belief => {
+                    html += `
+                        <tr>
+                            <td>${belief.statement_text.substring(0, 80)}...</td>
+                            <td>${belief.conviction_score.toFixed(2)}</td>
+                            <td>${belief.stability_score.toFixed(2)}</td>
+                            <td>${belief.certainty_gap.toFixed(2)}</td>
+                        </tr>
+                    `;
+                });
+            }
+
+            html += '</tbody>';
+            document.getElementById('vulnerableTable').innerHTML = html;
+        }
+    </script>
+</body>
+</html>
+

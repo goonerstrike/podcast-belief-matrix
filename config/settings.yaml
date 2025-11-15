@@ -8,6 +8,22 @@ extraction:
   batch_size: 10
   min_conviction_threshold: 0.3
   stage1_filter_enabled: true
+
+multilevel:
+  enabled: true
+  chunking_strategy: exponential  # exponential, linear, semantic, time-based
+  levels: [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]
+  deduplication_enabled: true
+  deduplication_threshold: 0.85
+  belief_linking_enabled: true
+  linking_threshold: 0.6
+
+analytics:
+  enabled: true
+  calculate_derived_metrics: true
+  build_belief_graph: true
+  generate_insights: true
+  export_formats: [csv, json, graphml]
   
 wandb:
   project: podcast-belief-extraction

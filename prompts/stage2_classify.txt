@@ -56,7 +56,7 @@ Based on the above, which tier does this belief belong to?
 31. Does this belief explicitly reject or oppose another belief/group/position (i.e., define an in-group vs out-group)? (yes/no)
 
 RESPOND IN THIS EXACT JSON FORMAT:
-{
+{{
   "q5_strong_commitment": true/false,
   "q6_repeated_consistently": true/false,
   "q7_defended_justified": true/false,
@@ -75,7 +75,7 @@ RESPOND IN THIS EXACT JSON FORMAT:
   "category": "epistemic|moral|political|economic|spiritual|social|tech|health|bitcoin/finance|other",
   "parent_hint": "string or empty",
   "defines_outgroup": true/false
-}
+}}
 
 IMPORTANCE SCALE (1-10):
 1 = Core Axiom (most foundational)

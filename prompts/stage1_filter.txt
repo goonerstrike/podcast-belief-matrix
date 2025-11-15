@@ -26,7 +26,7 @@ Answer these 4 FILTER QUESTIONS with YES or NO:
    - YES if it's a meaningful opinion or value judgment
 
 RESPOND IN THIS EXACT JSON FORMAT:
-{
+{{
   "is_belief": true/false,
   "q1_single_statement": true/false,
   "q2_belief_not_narration": true/false,
@@ -34,7 +34,7 @@ RESPOND IN THIS EXACT JSON FORMAT:
   "q4_non_trivial": true/false,
   "confidence": 0.0-1.0,
   "reasoning": "Brief explanation of decision"
-}
+}}
 
 A statement is a BELIEF if ALL 4 questions are YES.
 

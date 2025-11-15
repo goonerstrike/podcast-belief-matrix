@@ -4,14 +4,19 @@ Extract and classify belief statements from diarized podcast transcripts using a
 
 ## 🎯 Features
 
+- **Multi-Level Extraction**: Process transcripts at 10 abstraction levels to capture beliefs across all scales
 - **Two-Stage Classification**: Filter statements, then classify beliefs in detail
 - **30-Question Belief Matrix**: Comprehensive framework for belief analysis
 - **Hierarchical Belief Tiers**: From Core Axioms to Casual Jokes
+- **Advanced Analytics**: Derived metrics, graph analysis, and auto-generated insights
+- **Interactive Dashboard**: Web-based analytics dashboard with Plotly visualizations
 - **W&B Integration**: Full experiment tracking and visualization
 - **Cost-Optimized**: Two-stage approach saves ~60% vs single-stage
 - **Cheap Mode**: Test on first 1000 words before processing full transcripts
 
 ## 📊 Belief Matrix Schema
+
+### Core Fields
 
 | Column | Description | Example |
 |--------|-------------|---------|
@@ -27,6 +32,27 @@ Extract and classify belief statements from diarized podcast transcripts using a
 | `stability_score` | Long-term stability (0-1) | 0.92 |
 | `parent_hint` | Higher-level belief | "Individuals are solely responsible..." |
 | `parent_belief_id` | Parent belief ID | NULL or b_0001 |
+
+### Multi-Level Fields (NEW!)
+
+| Column | Description | Example |
+|--------|-------------|---------|
+| `discovery_level` | Which level found this belief | 3 |
+| `chunk_id` | Chunk identifier | L3_C0012 |
+| `chunk_size` | Utterances in chunk | 4 |
+| `reinforcement_count` | Times found across levels | 3 |
+| `reinforcement_levels` | Levels that found it | "1,2,4" |
+| `duplicate_group_id` | Duplicate cluster ID | dup_0005 |
+
+### Derived Metrics (Analytics)
+
+| Metric | Formula | Purpose |
+|--------|---------|---------|
+| `belief_strength` | conviction × stability | Overall robustness |
+| `foundational_weight` | (11 - importance) × conviction | How foundational |
+| `rigidity_score` | conviction × stability × (11 - importance) | Resistance to change |
+| `certainty_gap` | conviction - stability | Potential instability |
+| `influence_score` | child_count × conviction | Impact on other beliefs |
 
 ## 🏗️ Belief Tiers (Hierarchical)
 
@@ -63,6 +89,8 @@ cp .env.example .env
 
 ### Basic Usage
 
+#### Single-Level Extraction (Original)
+
 ```bash
 # Extract beliefs from transcript
 python run_extraction.py --transcript tests/test_sample.txt --episode-id e_test_001
@@ -76,6 +104,63 @@ python run_extraction.py --transcript input.txt --no-wandb
 # Custom output format
 python run_extraction.py --transcript input.txt --format json --output beliefs.json
 ```
+
+#### Multi-Level Extraction (NEW!)
+
+Process transcripts at multiple abstraction levels to capture beliefs that only emerge at different scales:
+
+```bash
+# Multi-level extraction with default exponential levels [1,2,4,8,16,32,64,128,256,512]
+python run_multilevel_extraction.py --transcript input.txt --episode-id e_001
+
+# Test with cheap mode and limited levels
+python run_multilevel_extraction.py --transcript input.txt --cheap-mode --levels "1,2,4,8"
+
+# Skip deduplication or linking steps
+python run_multilevel_extraction.py --transcript input.txt --no-dedup
+python run_multilevel_extraction.py --transcript input.txt --no-linking
+
+# Adjust deduplication threshold
+python run_multilevel_extraction.py --transcript input.txt --dedup-threshold 0.9
+```
+
+**Outputs**:
+- `beliefs_multilevel_*.csv` - Raw beliefs from all levels
+- `beliefs_deduplicated_*.csv` - Merged beliefs with reinforcement scores
+- `beliefs_linked_*.csv` - Final output with parent-child relationships
+
+#### Belief Analysis & Insights (NEW!)
+
+Analyze extracted beliefs to calculate derived metrics and generate insights:
+
+```bash
+# Analyze beliefs and show summary
+python analyze_beliefs.py output/beliefs_linked_e_001.csv
+
+# Show keystone beliefs and patterns
+python analyze_beliefs.py output/beliefs.csv --show-keystone 10 --show-patterns
+
+# Export metrics and insights
+python analyze_beliefs.py output/beliefs.csv --export-metrics --export-report --export-graph
+
+# Custom output directory
+python analyze_beliefs.py output/beliefs.csv --export-metrics --output-dir results/
+```
+
+**Outputs**:
+- `belief_metrics_*.csv` - Beliefs with all derived metrics
+- `belief_insights_*.md` - Auto-generated markdown report
+- `belief_graph_*.json` - Graph structure for visualization
+- `belief_graph_*.graphml` - For Gephi/Cytoscape analysis
+
+#### Interactive Dashboard (NEW!)
+
+Open `dashboard_analytics.html` in your browser and drag/drop any beliefs CSV to explore:
+- Real-time metric calculations
+- Interactive Plotly visualizations
+- Keystone belief identification
+- Vulnerability detection
+- Distribution analysis
 
 ### Viewing Rankings with Weights
 
@@ -115,7 +200,7 @@ SPEAKER_B | 00:00:26 | 00:00:35 | Another statement...
 
 ## 💰 Cost Estimates
 
-### Two-Stage Approach (Recommended)
+### Single-Level Extraction (Original)
 
 **Cheap Test Mode (720 words)**
 - Stage 1 filters: ~15 statements × $0.0003 = $0.0045
@@ -127,17 +212,23 @@ SPEAKER_B | 00:00:26 | 00:00:35 | Another statement...
 - Stage 2 classifies: ~60 beliefs × $0.01 = $0.60
 - **Total: ~$0.80-1.50**
 
-**10 Podcast Batch**
-- **Total: ~$8-15**
+### Multi-Level Extraction (10 Levels)
 
-### Single-Stage (If Skipping Filter)
-- Full podcast: $2-4 (60% more expensive)
+**Full Podcast (9,000 words) × 10 Levels**
+- 10 levels × ~$0.07-0.10 per level
+- **Total: ~$0.70-1.00 per episode**
+
+**Cost Efficiency**:
+- Each level processes different chunk sizes
+- Deduplication identifies beliefs found at multiple levels
+- Analytics phase is negligible (local computation)
 
 ### Cost Savings Strategy
 1. Always use **cheap mode** first to validate prompts
 2. Two-stage filtering eliminates ~70% of statements
 3. Stage 1 prompt is short and cheap
 4. Stage 2 only runs on confirmed beliefs
+5. For multi-level: test with `--levels "1,2,4"` before full 10-level run
 
 ## 📊 W&B Dashboard
 
@@ -176,11 +267,29 @@ extraction:
   two_stage: true
   batch_size: 10
   min_conviction_threshold: 0.3
+  stage1_filter_enabled: true
+
+multilevel:
+  enabled: true
+  chunking_strategy: exponential  # exponential, linear, semantic, time-based
+  levels: [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]
+  deduplication_enabled: true
+  deduplication_threshold: 0.85
+  belief_linking_enabled: true
+  linking_threshold: 0.6
+
+analytics:
+  enabled: true
+  calculate_derived_metrics: true
+  build_belief_graph: true
+  generate_insights: true
+  export_formats: [csv, json, graphml]
 
 wandb:
   project: podcast-belief-extraction
   entity: your-username
   log_artifacts: true
+  log_tables: true
 
 output:
   format: csv  # csv, json, or parquet
@@ -192,20 +301,31 @@ output:
 ```
 podcast-belief-extraction/
 ├── config/
-│   └── settings.yaml          # Configuration
+│   └── settings.yaml               # Configuration (with multilevel & analytics settings)
 ├── prompts/
-│   ├── stage1_filter.txt      # Is this a belief? (Q1-4)
-│   └── stage2_classify.txt    # Classify belief (Q5-30)
+│   ├── stage1_filter.txt           # Is this a belief? (Q1-4)
+│   └── stage2_classify.txt         # Classify belief (Q5-30)
 ├── src/
-│   ├── transcript_parser.py   # Parse diarized transcripts
-│   ├── classifier.py          # Two-stage belief classifier
-│   ├── extractor.py           # Main pipeline logic
-│   └── wandb_logger.py        # W&B integration
+│   ├── transcript_parser.py        # Parse diarized transcripts
+│   ├── classifier.py               # Two-stage belief classifier
+│   ├── extractor.py                # Single-level pipeline logic
+│   ├── chunker.py                  # Multi-level chunking (NEW!)
+│   ├── multilevel_extractor.py     # Multi-level extraction orchestrator (NEW!)
+│   ├── belief_merger.py            # Deduplication via semantic similarity (NEW!)
+│   ├── belief_linker.py            # Parent-child relationship linking (NEW!)
+│   ├── belief_analyzer.py          # Derived metrics calculation (NEW!)
+│   ├── belief_graph.py             # NetworkX graph construction (NEW!)
+│   ├── insight_generator.py        # Auto-generated insights (NEW!)
+│   └── wandb_logger.py             # W&B integration
 ├── tests/
-│   └── test_sample.txt        # 720-word test transcript
-├── output/                     # Generated belief matrices
-├── run_extraction.py          # Main CLI script
-├── view_rankings.py           # View formatted rankings with weights
+│   └── test_sample.txt             # 720-word test transcript
+├── output/                          # Generated belief matrices
+│   └── analysis/                    # Analytics outputs (NEW!)
+├── run_extraction.py               # Single-level CLI script
+├── run_multilevel_extraction.py    # Multi-level CLI script (NEW!)
+├── analyze_beliefs.py              # Analytics CLI script (NEW!)
+├── view_rankings.py                # View formatted rankings with weights
+├── dashboard_analytics.html        # Interactive web dashboard (NEW!)
 ├── requirements.txt
 └── README.md
 ```
