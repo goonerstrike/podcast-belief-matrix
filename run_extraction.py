@@ -3,9 +3,12 @@
 Main script for belief extraction from podcast transcripts.
 
 Usage:
-    python run_extraction.py --transcript input.txt --episode-id e_001
-    python run_extraction.py --transcript input.txt --cheap-mode
-    python run_extraction.py --help
+    # Process transcript from input/ directory (default)
+    python run_extraction.py
+    python run_extraction.py --cheap-mode
+    
+    # Process specific file (override)
+    python run_extraction.py --transcript path/to/file.txt --episode-id e_001
 """
 import click
 import os
@@ -21,10 +24,12 @@ load_dotenv()
 
 
 @click.command()
-@click.option('--transcript', '-t', required=True, type=click.Path(exists=True),
-              help='Path to diarized transcript file')
+@click.option('--transcript', '-t', type=click.Path(exists=True), default=None,
+              help='Single transcript file to process (overrides --input-dir)')
+@click.option('--input-dir', '-i', type=click.Path(exists=True), default='input',
+              help='Directory containing transcript files (default: input/)')
 @click.option('--episode-id', '-e', default=None,
-              help='Episode identifier (e.g., e_jre_2404)')
+              help='Episode identifier (only used with --transcript)')
 @click.option('--cheap-mode', is_flag=True,
               help='Process only first 1000 words for testing')
 @click.option('--max-words', default=1000, type=int,
@@ -40,9 +45,13 @@ load_dotenv()
 @click.option('--config', type=click.Path(exists=True),
               default='config/settings.yaml',
               help='Config file path')
-def main(transcript, episode_id, cheap_mode, max_words, model, output,
+def main(transcript, input_dir, episode_id, cheap_mode, max_words, model, output,
          format, no_wandb, config):
-    """Extract beliefs from diarized podcast transcripts."""
+    """Extract beliefs from diarized podcast transcripts.
+    
+    By default, scans input/ directory and processes the first .txt file found.
+    Use --transcript to process a specific file instead.
+    """
     
     # Banner
     print("=" * 60)
@@ -63,9 +72,35 @@ def main(transcript, episode_id, cheap_mode, max_words, model, output,
         click.echo("   Create .env file with: OPENAI_API_KEY=your-key-here", err=True)
         return
     
+    # Determine which transcript to process
+    if transcript:
+        # Single file override
+        transcript_path = transcript
+        print(f"📄 Processing single transcript: {transcript}\n")
+    else:
+        # Scan input directory
+        input_path = Path(input_dir)
+        txt_files = sorted(input_path.glob('*.txt'))
+        
+        if not txt_files:
+            click.echo(f"❌ No .txt files found in {input_dir}/", err=True)
+            click.echo(f"   Drop transcript files in {input_dir}/ directory", err=True)
+            return
+        
+        if len(txt_files) > 1:
+            print(f"📂 Found {len(txt_files)} transcript(s) in {input_dir}/")
+            for idx, txt_file in enumerate(txt_files, 1):
+                print(f"   {idx}. {txt_file.name}")
+            print(f"\n⚠️  Processing first file: {txt_files[0].name}")
+            print(f"   (Use run_multilevel_extraction.py for batch processing)\n")
+        else:
+            print(f"📂 Found transcript: {txt_files[0].name}\n")
+        
+        transcript_path = str(txt_files[0])
+    
     # Determine episode_id
     if not episode_id:
-        episode_id = Path(transcript).stem.replace(' ', '_')[:30]
+        episode_id = Path(transcript_path).stem.replace(' ', '_').replace('-', '_')[:50]
     
     # Determine output path
     if not output:
@@ -84,7 +119,7 @@ def main(transcript, episode_id, cheap_mode, max_words, model, output,
             'model': model,
             'cheap_mode': cheap_mode,
             'max_words': max_words if cheap_mode else None,
-            'transcript_file': str(transcript)
+            'transcript_file': str(transcript_path)
         }
         
         wandb_logger = WandbLogger(
@@ -98,7 +133,7 @@ def main(transcript, episode_id, cheap_mode, max_words, model, output,
     
     # Initialize extractor
     print(f"\n⚙️  Configuration:")
-    print(f"   Transcript: {transcript}")
+    print(f"   Transcript: {transcript_path}")
     print(f"   Episode ID: {episode_id}")
     print(f"   Model: {model}")
     print(f"   Cheap mode: {'Yes (' + str(max_words) + ' words)' if cheap_mode else 'No'}")
@@ -114,7 +149,7 @@ def main(transcript, episode_id, cheap_mode, max_words, model, output,
     # Extract beliefs
     print(f"🚀 Starting extraction...")
     df = extractor.extract_from_file(
-        transcript_path=transcript,
+        transcript_path=transcript_path,
         episode_id=episode_id,
         cheap_mode=cheap_mode,
         max_words=max_words
@@ -145,7 +180,7 @@ def main(transcript, episode_id, cheap_mode, max_words, model, output,
         wandb_logger.log_cost(cost_stats)
         wandb_logger.log_all_visualizations(df)
         wandb_logger.log_artifacts(
-            transcript_path=transcript,
+            transcript_path=transcript_path,
             output_path=str(output)
         )
         wandb_logger.finish()
