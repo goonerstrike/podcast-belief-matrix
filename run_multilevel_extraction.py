@@ -226,7 +226,31 @@ def main(transcript, episode_id, cheap_mode, max_words, model, output_dir,
         
         wandb_logger.finish()
     
-    print(f"✅ Done! Final beliefs saved to: {linked_output}")
+    # Generate and auto-open dashboard
+    if len(df_linked) > 0:
+        import webbrowser
+        from src.dashboard_generator import generate_dashboard_html
+        
+        dashboard_path = output_dir / f'dashboard_{episode_id}.html'
+        
+        print(f"\n🎨 Generating dashboard...")
+        try:
+            generated_html = generate_dashboard_html(
+                csv_path=str(linked_output),
+                output_html_path=str(dashboard_path),
+                episode_id=episode_id
+            )
+            print(f"💾 Dashboard saved to: {dashboard_path}")
+            
+            # Auto-open in browser
+            print(f"🚀 Opening dashboard in browser...")
+            webbrowser.open(f'file://{generated_html}')
+            print(f"📊 Dashboard opened!")
+        except Exception as e:
+            print(f"⚠️  Dashboard generation failed: {e}")
+            print(f"   You can still view results in: {linked_output}")
+    
+    print(f"\n✅ Done! Final beliefs saved to: {linked_output}")
 
 
 if __name__ == '__main__':
