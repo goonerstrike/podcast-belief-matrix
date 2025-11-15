@@ -65,7 +65,7 @@ class BeliefMerger:
     
     def _find_duplicates(self, df: pd.DataFrame) -> List[List[int]]:
         """
-        Find groups of duplicate beliefs using semantic similarity.
+        Find groups of duplicate beliefs using exact matching and semantic similarity.
         
         Args:
             df: DataFrame with beliefs
@@ -76,7 +76,32 @@ class BeliefMerger:
         if len(df) < 2:
             return []
         
-        # Vectorize statements
+        groups = []
+        processed = set()
+        
+        # STEP 1: Find exact duplicates (same timestamp + speaker + text)
+        print("   Checking for exact duplicates (timestamp + speaker)...")
+        for i in range(len(df)):
+            if i in processed:
+                continue
+            
+            # Find beliefs with same timestamp and speaker
+            exact_matches = []
+            for j in range(i, len(df)):
+                if j in processed:
+                    continue
+                
+                if (df.iloc[i]['timestamp'] == df.iloc[j]['timestamp'] and
+                    df.iloc[i]['speaker_id'] == df.iloc[j]['speaker_id']):
+                    exact_matches.append(j)
+            
+            if len(exact_matches) > 1:
+                groups.append(exact_matches)
+                processed.update(exact_matches)
+                print(f"      Found {len(exact_matches)} exact duplicates at {df.iloc[i]['timestamp']}")
+        
+        # STEP 2: Find semantic duplicates using TF-IDF
+        print("   Checking for semantic duplicates (TF-IDF similarity)...")
         statements = df['statement_text'].fillna('').tolist()
         
         try:
@@ -84,12 +109,10 @@ class BeliefMerger:
             similarity_matrix = cosine_similarity(tfidf_matrix)
         except:
             # Fallback: no vectorization possible
-            return []
+            print("   ⚠️  TF-IDF vectorization failed, skipping semantic deduplication")
+            return groups
         
-        # Find duplicate groups
-        groups = []
-        processed = set()
-        
+        # Find semantically similar beliefs (not already processed as exact duplicates)
         for i in range(len(df)):
             if i in processed:
                 continue
@@ -103,6 +126,7 @@ class BeliefMerger:
                 if len(group) > 1:
                     groups.append(group)
                     processed.update(group)
+                    print(f"      Found {len(group)} semantic duplicates (similarity >= {self.similarity_threshold})")
         
         return groups
     
