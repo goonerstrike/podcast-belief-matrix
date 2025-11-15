@@ -20,6 +20,9 @@ ENV/
 .env
 .env.local
 
+# Input transcripts
+input/*.txt
+
 # Output
 output/
 *.csv
