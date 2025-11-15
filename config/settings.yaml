@@ -6,7 +6,7 @@ openai:
 extraction:
   two_stage: true
   batch_size: 10
-  min_conviction_threshold: 0.3
+  min_conviction_threshold: 0.0  # Keep all beliefs, even low conviction
   stage1_filter_enabled: true
 
 multilevel:

@@ -9,21 +9,24 @@ Text: "{statement_text}"
 
 Answer these 4 FILTER QUESTIONS with YES or NO:
 
-1. Is this text a single clear, standalone statement? (yes/no)
-   - NO if it's a question, fragment, or requires more context
-   - YES if it's a complete thought
+1. Does this text contain at least one identifiable belief or value judgment? (yes/no)
+   - NO if it's purely logistical (ads, greetings, timestamps, housekeeping)
+   - YES if it expresses any opinion, evaluation, or preference - even if also contains questions or fragments
 
-2. Is this statement expressed as a belief, judgment, value, stance, or rule rather than narration, a quote, or a question? (yes/no)
-   - NO if it's just describing events, quoting someone, or asking a question
-   - YES if it expresses what the speaker believes, values, or thinks should be
+2. Does this statement reveal what the speaker believes, even implicitly? (yes/no)
+   - NO if it's pure factual narration with no evaluative language
+   - YES if it contains ANY opinion, evaluation, preference, or implied stance
+   - YES for rhetorical questions that reveal beliefs ("Isn't X obviously wrong?")
 
-3. Is this belief clearly endorsed by the target speaker, not merely reported about someone else? (yes/no)
-   - NO if speaker is just reporting what others believe
-   - YES if this is the speaker's own belief
+3. Is this belief likely endorsed or sympathetically discussed by the speaker? (yes/no)
+   - NO if speaker is explicitly disagreeing or neutrally reporting facts
+   - YES if speaker seems to agree, sympathize, or present favorably
+   - YES even if not explicitly saying "I believe" - tone and context matter
 
-4. Is this belief non-trivial (i.e., not obvious housekeeping, simple fact, or definition)? (yes/no)
-   - NO if it's logistics, greetings, simple facts ("2+2=4")
-   - YES if it's a meaningful opinion or value judgment
+4. Does this belief reveal anything about the speaker's worldview or preferences? (yes/no)
+   - NO if it's purely procedural (ads, "welcome to the show", time checks)
+   - YES if it shows ANY preference, taste, opinion, or interpretive stance
+   - YES even for casual preferences ("I like coffee") or aesthetic judgments
 
 RESPOND IN THIS EXACT JSON FORMAT:
 {{
@@ -36,5 +39,8 @@ RESPOND IN THIS EXACT JSON FORMAT:
   "reasoning": "Brief explanation of decision"
 }}
 
-A statement is a BELIEF if ALL 4 questions are YES.
+A statement is a BELIEF if:
+- Questions 2, 3, 4 are YES (must contain endorsed belief content)
+- Question 1 can be NO (allow fragments/mixed statements)
+OR if confidence >= 0.6 that it contains extractable belief content
 

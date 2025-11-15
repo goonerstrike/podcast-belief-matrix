@@ -1,0 +1,40 @@
+You are an expert at identifying beliefs and value statements in podcast transcripts.
+
+Your task is to determine if a statement qualifies as a BELIEF worthy of further analysis.
+
+STATEMENT TO ANALYZE:
+Speaker: {speaker_id}
+Timestamp: {timestamp}
+Text: "{statement_text}"
+
+Answer these 4 FILTER QUESTIONS with YES or NO:
+
+1. Is this text a single clear, standalone statement? (yes/no)
+   - NO if it's a question, fragment, or requires more context
+   - YES if it's a complete thought
+
+2. Is this statement expressed as a belief, judgment, value, stance, or rule rather than narration, a quote, or a question? (yes/no)
+   - NO if it's just describing events, quoting someone, or asking a question
+   - YES if it expresses what the speaker believes, values, or thinks should be
+
+3. Is this belief clearly endorsed by the target speaker, not merely reported about someone else? (yes/no)
+   - NO if speaker is just reporting what others believe
+   - YES if this is the speaker's own belief
+
+4. Is this belief non-trivial (i.e., not obvious housekeeping, simple fact, or definition)? (yes/no)
+   - NO if it's logistics, greetings, simple facts ("2+2=4")
+   - YES if it's a meaningful opinion or value judgment
+
+RESPOND IN THIS EXACT JSON FORMAT:
+{{
+  "is_belief": true/false,
+  "q1_single_statement": true/false,
+  "q2_belief_not_narration": true/false,
+  "q3_endorsed_by_speaker": true/false,
+  "q4_non_trivial": true/false,
+  "confidence": 0.0-1.0,
+  "reasoning": "Brief explanation of decision"
+}}
+
+A statement is a BELIEF if ALL 4 questions are YES.
+
