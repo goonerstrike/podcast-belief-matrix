@@ -2,6 +2,45 @@
 
 Extract and classify belief statements from diarized podcast transcripts using a 30-question belief matrix and AI-powered classification.
 
+---
+
+## 📑 Table of Contents
+
+- [🎯 Features](#-features)
+- [📊 Belief Matrix Schema](#-belief-matrix-schema)
+  - [Core Fields](#core-fields)
+  - [Multi-Level Fields](#multi-level-fields-new)
+  - [Derived Metrics](#derived-metrics-analytics)
+- [🏗️ Belief Tiers (Hierarchical)](#️-belief-tiers-hierarchical)
+- [🚀 Quick Start](#-quick-start)
+  - [Installation](#installation)
+  - [Basic Usage](#basic-usage)
+  - [Viewing Rankings](#viewing-rankings-with-weights)
+  - [Input Format](#input-format)
+- [💰 Cost Estimates](#-cost-estimates)
+- [📊 W&B Dashboard](#-wb-dashboard)
+- [🛠️ Configuration](#️-configuration)
+- [📁 Project Structure](#-project-structure)
+- [🔬 How It Works: Step-by-Step](#-how-it-works-step-by-step)
+  - [Phase 1: Input & Initialization](#-phase-1-input--initialization)
+  - [Phase 2: Transcript Parsing](#-phase-2-transcript-parsing)
+  - [Phase 3: AI Classification](#-phase-3-ai-classification-the-core-loop)
+  - [Phase 4: Data Processing & Output](#-phase-4-data-processing--output)
+  - [Phase 5: Analytics & Visualization](#-phase-5-analytics--visualization)
+  - [Multi-Level Extraction (Advanced)](#-multi-level-extraction-advanced)
+  - [Key Optimizations](#-key-optimizations)
+  - [Data Flow Summary](#-data-flow-summary)
+  - [Example Processing](#-example-processing)
+- [🎯 Use Cases](#-use-cases)
+- [🤝 Contributing](#-contributing)
+- [📝 Example Output](#-example-output)
+- [🐛 Troubleshooting](#-troubleshooting)
+- [📄 License](#-license)
+- [🙏 Acknowledgments](#-acknowledgments)
+- [📧 Support](#-support)
+
+---
+
 ## 🎯 Features
 
 - **Multi-Level Extraction**: Process transcripts at 10 abstraction levels to capture beliefs across all scales
@@ -330,27 +369,192 @@ podcast-belief-extraction/
 └── README.md
 ```
 
-## 🔬 How It Works
+## 🔬 How It Works: Step-by-Step
 
-### Stage 1: Filter (Questions 1-4)
-Quickly determines if a statement is a belief:
-1. Is this a single clear statement?
-2. Is it a belief vs narration/quote?
-3. Is it endorsed by the speaker?
-4. Is it non-trivial?
+### Overview
+The pipeline processes podcast transcripts through a multi-stage AI-powered analysis system that identifies, classifies, and organizes belief statements into a hierarchical matrix.
 
-**Result**: `is_belief: true/false` + confidence score
+### 📥 Phase 1: Input & Initialization
 
-### Stage 2: Classify (Questions 5-30)
-For confirmed beliefs, detailed classification:
-- **Q5-7**: Conviction indicators
-- **Q8-13**: Belief type identification
-- **Q14-15**: Claim vs casual statement
-- **Q16-26**: Tier assignment
-- **Q27-28**: Conviction & stability scoring
-- **Q29-31**: Category, parent hint, outgroup definition
+1. **Parse CLI Arguments** - Script reads command-line options like transcript path, episode ID, model choice, and output format
+2. **Load API Credentials** - Retrieves OpenAI API key from `.env` file to authenticate with GPT models
+3. **Initialize W&B Tracking** - Sets up Weights & Biases experiment tracking for logging metrics and visualizations
+4. **Load Configuration** - Reads `config/settings.yaml` for model parameters, thresholds, and output preferences
 
-**Result**: Full belief record with 12 structured fields
+### 📄 Phase 2: Transcript Parsing
+
+5. **Parse Transcript File** - Reads diarized transcript and splits each line into speaker ID, timestamps, and text content using regex patterns
+   ```
+   Input:  SPEAKER_A | 00:01:23 | 00:01:45 | This is what they said
+   Output: Utterance(speaker_id='SPEAKER_A', start_time='00:01:23', ...)
+   ```
+6. **Create Utterance Objects** - Wraps each parsed line into a structured dataclass with speaker, time, and text fields
+7. **Apply Truncation (Optional)** - If cheap mode is enabled, limits processing to first N words for cost-effective testing
+
+### 🤖 Phase 3: AI Classification (The Core Loop)
+
+For **each utterance**, the system runs a two-stage classification:
+
+#### Stage 1: Belief Filter (Fast & Cheap)
+
+8. **Build Stage 1 Prompt** - Inserts utterance details into the filter prompt template asking 4 yes/no questions:
+   - Does this contain an identifiable belief or value judgment?
+   - Does it reveal what the speaker believes (even implicitly)?
+   - Is it endorsed or sympathetically discussed by the speaker?
+   - Does it reveal anything about their worldview or preferences?
+
+9. **Call OpenAI API (Stage 1)** - Sends prompt to GPT model (default: `gpt-4o-mini`) requesting JSON response
+   ```json
+   {
+     "is_belief": true,
+     "confidence": 0.85,
+     "reasoning": "Speaker expresses trust in Elon..."
+   }
+   ```
+
+10. **Parse Filter Response** - Extracts `is_belief` flag and confidence score from JSON response
+
+11. **Skip Non-Beliefs** - If statement isn't a belief, skips Stage 2 (saving ~70% of costs) and moves to next utterance
+
+#### Stage 2: Detailed Classification (Only for Beliefs)
+
+12. **Build Stage 2 Prompt** - Inserts confirmed belief into classification prompt with 31 detailed questions covering:
+    - **Conviction Indicators (Q5-7)**: Strength of commitment, consistency, defense of belief
+    - **Belief Type (Q8-13)**: Fundamental nature, epistemic, moral, cross-domain, systems, domain-specific
+    - **Claim Type (Q14-15)**: Testable/concrete vs casual/exploratory
+    - **Tier Classification (Q16-26)**: Which of 10 hierarchical tiers best fits
+    - **Scoring (Q27-28)**: Conviction score (0-1) and stability score (0-1)
+    - **Categorization (Q29-31)**: Domain category, parent belief hint, outgroup definition
+
+13. **Call OpenAI API (Stage 2)** - Sends comprehensive prompt requesting detailed analysis
+    ```json
+    {
+      "tier_name": "Stable Domain Beliefs",
+      "importance": 6,
+      "conviction_score": 0.7,
+      "stability_score": 0.6,
+      "category": "political",
+      "parent_hint": "Moral responsibility of influential figures",
+      ...
+    }
+    ```
+
+14. **Extract Classification Data** - Parses JSON response containing all 27+ fields of belief analysis
+
+15. **Create BeliefClassification Object** - Wraps all extracted data into structured result with both stage responses
+
+16. **Track API Costs** - Records tokens used and calculates cost: `(prompt_tokens × $0.00015 + completion_tokens × $0.0006) / 1000`
+
+### 📊 Phase 4: Data Processing & Output
+
+17. **Filter Beliefs Only** - Keeps only utterances where `is_belief=True`, discarding non-beliefs (~70-80% filtered out)
+
+18. **Convert to DataFrame** - Transforms belief objects into pandas DataFrame with standardized 12-column schema:
+    ```
+    belief_id | speaker_id | episode_id | timestamp | statement_text | 
+    importance | tier_name | category | conviction_score | stability_score | 
+    parent_hint | parent_belief_id
+    ```
+
+19. **Save to File** - Exports DataFrame as CSV/JSON/Parquet with all belief data organized and structured
+
+### 📈 Phase 5: Analytics & Visualization
+
+20. **Calculate Statistics** - Computes summary metrics like total beliefs, per-speaker counts, average conviction/stability scores
+
+21. **Generate Visualizations** - Creates interactive Plotly charts:
+    - Tier distribution bar chart
+    - Category breakdown pie chart
+    - Speaker comparison (count + conviction)
+    - Conviction vs stability scatter plot
+    - Tier-category heatmap
+
+22. **Log to W&B** - Uploads beliefs table, metrics, cost data, and visualizations to Weights & Biases dashboard
+
+23. **Upload Artifacts** - Saves input transcript and output CSV as W&B artifacts for reproducibility
+
+24. **Print Summary** - Displays console output with belief count, speakers, scores, tokens, and total cost
+
+25. **Finish W&B Run** - Closes tracking session and provides link to view results in dashboard
+
+### 🔄 Multi-Level Extraction (Advanced)
+
+For multi-level extraction (`run_multilevel_extraction.py`), the process repeats at different abstraction levels:
+
+26. **Chunk Transcript** - Splits utterances into chunks of varying sizes (1, 2, 4, 8, 16, 32, 64, 128, 256, 512 utterances)
+
+27. **Extract Per Level** - Runs full extraction pipeline on each chunk size independently
+
+28. **Deduplicate Beliefs** - Uses semantic similarity to identify duplicate beliefs found across multiple levels
+
+29. **Link Parent-Child** - Analyzes `parent_hint` fields to establish hierarchical relationships between beliefs
+
+30. **Calculate Derived Metrics** - Computes advanced analytics:
+    - `belief_strength` = conviction × stability
+    - `foundational_weight` = (11 - importance) × conviction
+    - `rigidity_score` = conviction × stability × (11 - importance)
+    - `certainty_gap` = conviction - stability
+    - `influence_score` = child_count × conviction
+
+### 💡 Key Optimizations
+
+- **Two-Stage Design**: Stage 1 filters ~70-80% of statements, saving significant API costs
+- **JSON Mode**: Forces structured output for reliable parsing
+- **Cost Tracking**: Real-time monitoring of token usage and expenses
+- **Batch Processing**: Processes utterances sequentially with progress tracking
+- **Cheap Mode**: Test with first 1000 words before committing to full transcripts
+- **Caching Prompts**: Loads prompt templates once at initialization
+
+### 🎯 Data Flow Summary
+
+```
+Transcript File
+    ↓
+Parse → Utterance Objects [191 items]
+    ↓
+For each utterance:
+    ↓
+Stage 1 Filter (4 questions) → is_belief: true/false
+    ↓ (if true)
+Stage 2 Classify (31 questions) → Full belief data
+    ↓
+Filter beliefs only [4 found]
+    ↓
+Convert to DataFrame
+    ↓
+Save CSV + Generate Analytics + Upload to W&B
+    ↓
+Done! ($0.0282 for 191 utterances)
+```
+
+### 🧪 Example Processing
+
+**Input Utterance:**
+```
+SPEAKER_B | 00:12:04 | "I think Elon is genuine and does actual good work..."
+```
+
+**Stage 1 Output:**
+```json
+{"is_belief": true, "confidence": 0.85}
+```
+
+**Stage 2 Output:**
+```json
+{
+  "tier_name": "Stable Domain Beliefs",
+  "importance": 6,
+  "conviction_score": 0.7,
+  "stability_score": 0.6,
+  "category": "political",
+  "parent_hint": "Belief in moral responsibility of influential figures"
+}
+```
+
+**Final Record:**
+```csv
+b_0001,SPEAKER_B,e_jre,00:12:04,"I think Elon is genuine...",6,Stable Domain Beliefs,political,0.7,0.6,"Belief in moral responsibility",NULL
+```
 
 ## 🎯 Use Cases
 
