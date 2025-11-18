@@ -7,49 +7,64 @@ This document visualizes the complete belief extraction pipeline, showing how ut
 ```mermaid
 flowchart TD
     A["📄 Start: Transcript File
-    Diarized text with speaker labels"] --> B["🔍 Parse Transcript
-    Extract speaker, timestamp, text"]
+    Diarized text with speaker labels
+    📜 run_multilevel_extraction.py"] --> B["🔍 Parse Transcript
+    Extract speaker, timestamp, text
+    📜 transcript_parser.py::parse_file()"]
     
     B --> C["✂️ Split into Utterances
-    Each line becomes one utterance"]
+    Each line becomes one utterance
+    📜 transcript_parser.py::Utterance"]
     
     C --> D{"🔄 For Each Utterance
-    Process 1 by 1 or in parallel"}
+    Process 1 by 1 or in parallel
+    📜 extractor.py::extract_from_file()"}
     
     D --> E["🚦 Stage 1: Belief Filter
     Q1: Contains identifiable belief?
     Q2: Reveals what speaker believes?
     Q3: Endorsed by speaker?
-    Q4: Reveals worldview/preferences?"]
+    Q4: Reveals worldview/preferences?
+    📜 classifier.py::stage1_filter()"]
     
     E --> F{"❓ Is Belief?
-    Check filter confidence score"}
+    Check filter confidence score
+    📜 classifier.py::classify()"}
     
     F -->|"❌ No - 70% filtered out"| G["⏭️ Skip
     Questions, ads, greetings"]
     
     F -->|"✅ Yes - 30% pass filter"| H["⚡ Extract Atomic Beliefs
-    NEW: Clean standalone statements"]
+    NEW: Clean standalone statements
+    📜 classifier.py::extract_atomic_beliefs()"]
     
     H --> I["🎯 Get Statement + Certainty
-    binary or hedged classification"]
+    binary or hedged classification
+    📜 prompts/atomic_belief_extraction.txt"]
     
     I --> J["🧠 Stage 2: Full Classification
-    26+ analysis questions via LLM"]
+    26+ analysis questions via LLM
+    📜 classifier.py::stage2_classify()"]
     
     J --> K["🏆 Determine Primary Tier
-    Which of 10 tiers fits best"]
+    Which of 10 tiers fits best
+    📜 prompts/stage2_classify.txt"]
     J --> L["📊 Generate 10 Abstractions
-    Core Axioms → Loose Takes"]
+    Core Axioms → Loose Takes
+    📜 prompts/tier_abstraction.txt"]
     J --> M["💪 Conviction & Stability
-    How strong + how stable 0-1"]
+    How strong + how stable 0-1
+    📜 prompts/stage2_classify.txt"]
     J --> N["🌐 Score 4 Domains
-    Sci/tech, phil/religious, financial, political"]
+    Sci/tech, phil/religious, financial, political
+    📜 prompts/stage2_classify.txt"]
     J --> O["🏷️ Assign Category
-    epistemic, moral, political, etc."]
+    epistemic, moral, political, etc.
+    📜 prompts/stage2_classify.txt"]
     
     K --> P["📦 Compile Belief Record
-    Combine all fields into one row"]
+    Combine all fields into one row
+    📜 classifier.py::BeliefClassification"]
     L --> P
     M --> P
     N --> P
@@ -57,23 +72,29 @@ flowchart TD
     I --> P
     
     P --> Q{"🔁 More Utterances?
-    Continue until all processed"}
+    Continue until all processed
+    📜 classifier.py::classify_batch()"}
     
     Q -->|Yes| D
     Q -->|No| R["🗂️ Create DataFrame
-    Convert to pandas table"]
+    Convert to pandas table
+    📜 extractor.py::_to_dataframe()"]
     
     R --> S["➕ Add New Columns
-    atomic_belief, certainty + 14 others"]
+    atomic_belief, certainty + 14 others
+    📜 extractor.py::_to_dataframe()"]
     
     S --> T["💾 Save Output
-    CSV/Parquet with all weights"]
+    CSV/Parquet with all weights
+    📜 multilevel_extractor.py::save_output()"]
     
     T --> U["📈 Calculate Summary Stats
-    Counts, averages, costs"]
+    Counts, averages, costs
+    📜 multilevel_extractor.py::get_cost_stats()"]
     
     U --> V["✨ Display Results
-    Total beliefs, speakers, cost"]
+    Total beliefs, speakers, cost
+    📜 run_multilevel_extraction.py"]
     
     classDef newFeature fill:#90EE90,stroke:#2d5016,stroke-width:2px,color:#000
     classDef aiStep fill:#87CEEB,stroke:#104e8b,stroke-width:2px,color:#000
@@ -163,13 +184,16 @@ The final CSV/Parquet includes:
 ## Usage
 
 ```bash
-# Basic extraction
-python run_extraction.py --transcript input.txt --format csv
+# Single-level extraction
+python run_multilevel_extraction.py --transcript input.txt --levels 1
 
 # Parallel processing (2-4x faster)
-python run_extraction.py --transcript input.txt --parallel --max-workers 10
+python run_multilevel_extraction.py --transcript input.txt --levels 1 --parallel --max-workers 10
 
 # Test with cheap mode
-python run_extraction.py --transcript input.txt --cheap-mode --no-wandb
+python run_multilevel_extraction.py --transcript input.txt --levels 1 --cheap-mode --no-wandb
+
+# Multi-level extraction (default)
+python run_multilevel_extraction.py --transcript input.txt --episode-id e_001
 ```
 
