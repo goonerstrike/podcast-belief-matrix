@@ -51,64 +51,71 @@ flowchart TD
     Certainty --> Stage2Header["🧠 Stage 2: Full Classification
     📜 classifier.py::stage2_classify()"]
     
-    Stage2Header --> Q5["Q5: Does wording indicate strong/absolute
+    Stage2Header --> ConvictionCat["💪 Conviction Indicators Q5-Q7"]
+    Stage2Header --> BeliefTypeCat["🎯 Belief Type Q8-Q13"]
+    Stage2Header --> ClaimTypeCat["📋 Claim Type Q14-Q15"]
+    Stage2Header --> TierCat["🏆 Tier Classification Q16-Q26"]
+    Stage2Header --> ScoringCat["📊 Scoring Q27-Q28"]
+    Stage2Header --> CategorizationCat["🏷️ Categorization Q29-Q31"]
+    
+    ConvictionCat --> Q5["Q5: Does wording indicate strong/absolute
     commitment always/never/must/cannot?"]
-    Stage2Header --> Q6["Q6: Does context suggest speaker repeats
+    ConvictionCat --> Q6["Q6: Does context suggest speaker repeats
     or consistently relies on this belief?"]
-    Stage2Header --> Q7["Q7: Does speaker defend or justify this belief
+    ConvictionCat --> Q7["Q7: Does speaker defend or justify this belief
     against alternatives or objections?"]
     
-    Stage2Header --> Q8["Q8: Is this belief about fundamental nature of
+    BeliefTypeCat --> Q8["Q8: Is this belief about fundamental nature of
     reality, human nature, purpose, or existence?"]
-    Stage2Header --> Q9["Q9: Is this belief about how truth/knowledge
+    BeliefTypeCat --> Q9["Q9: Is this belief about how truth/knowledge
     should be formed, who/what to trust?"]
-    Stage2Header --> Q10["Q10: Is this belief about broad moral principles
+    BeliefTypeCat --> Q10["Q10: Is this belief about broad moral principles
     of right/wrong or good/bad across situations?"]
-    Stage2Header --> Q11["Q11: Is this belief a cross-domain principle
+    BeliefTypeCat --> Q11["Q11: Is this belief a cross-domain principle
     speaker applies in multiple areas of life?"]
-    Stage2Header --> Q12["Q12: Is this belief primarily about large-scale
+    BeliefTypeCat --> Q12["Q12: Is this belief primarily about large-scale
     systems state/markets/money/religion/tech/law?"]
-    Stage2Header --> Q13["Q13: Is this belief mainly about one specific
+    BeliefTypeCat --> Q13["Q13: Is this belief mainly about one specific
     domain Bitcoin/real estate/AI/health/education?"]
     
-    Stage2Header --> Q14["Q14: Is this statement concrete, testable,
+    ClaimTypeCat --> Q14["Q14: Is this statement concrete, testable,
     or time-bound claim prediction/empirical assertion?"]
-    Stage2Header --> Q15["Q15: Is this statement casual preference,
+    ClaimTypeCat --> Q15["Q15: Is this statement casual preference,
     offhand comment, joke, or musing?"]
     
-    Stage2Header --> Q16["Q16: Should this be labeled as Core Axiom
+    TierCat --> Q16["Q16: Should this be labeled as Core Axiom
     foundational, cross-domain, defended, stable?"]
-    Stage2Header --> Q17["Q17: Should this be labeled as Worldview Pillar
+    TierCat --> Q17["Q17: Should this be labeled as Worldview Pillar
     big-picture moral/political/economic frame?"]
-    Stage2Header --> Q18["Q18: Should this be labeled as Identity-Defining Value
+    TierCat --> Q18["Q18: Should this be labeled as Identity-Defining Value
     this is who I am / we are?"]
-    Stage2Header --> Q19["Q19: Should this be labeled as Meta-Principle
+    TierCat --> Q19["Q19: Should this be labeled as Meta-Principle
     rule for how to choose/update beliefs?"]
-    Stage2Header --> Q20["Q20: Should this be labeled as Cross-Domain Rule
+    TierCat --> Q20["Q20: Should this be labeled as Cross-Domain Rule
     or Heuristic action rule in many contexts?"]
-    Stage2Header --> Q21["Q21: Should this be labeled as Stable Domain Belief
+    TierCat --> Q21["Q21: Should this be labeled as Stable Domain Belief
     consistent stance within one topic?"]
-    Stage2Header --> Q22["Q22: Should this be labeled as Repeated Strategy
+    TierCat --> Q22["Q22: Should this be labeled as Repeated Strategy
     or Playbook tactic speaker endorses/uses?"]
-    Stage2Header --> Q23["Q23: Should this be labeled as Concrete Claim
+    TierCat --> Q23["Q23: Should this be labeled as Concrete Claim
     or Prediction?"]
-    Stage2Header --> Q24["Q24: Should this be labeled as Situational Opinion
+    TierCat --> Q24["Q24: Should this be labeled as Situational Opinion
     tied to a narrow context?"]
-    Stage2Header --> Q25["Q25: Should this be labeled as Loose Take
+    TierCat --> Q25["Q25: Should this be labeled as Loose Take
     Joke or Aesthetic Vibe?"]
-    Stage2Header --> Q26["Q26: What is the SINGLE BEST-FITTING tier?
+    TierCat --> Q26["Q26: What is the SINGLE BEST-FITTING tier?
     Choose ONE from Q16-25"]
     
-    Stage2Header --> Q27["Q27: On a 0-1 scale, how strong is
+    ScoringCat --> Q27["Q27: On a 0-1 scale, how strong is
     the speaker's conviction in this belief?"]
-    Stage2Header --> Q28["Q28: On a 0-1 scale, how stable/long-term
+    ScoringCat --> Q28["Q28: On a 0-1 scale, how stable/long-term
     does this belief appear given the context?"]
     
-    Stage2Header --> Q29["Q29: What is the single best-fitting category label?
+    CategorizationCat --> Q29["Q29: What is the single best-fitting category label?
     epistemic/moral/political/economic/spiritual/social/tech/health/bitcoin/other"]
-    Stage2Header --> Q30["Q30: In one short phrase, what higher-level belief
+    CategorizationCat --> Q30["Q30: In one short phrase, what higher-level belief
     or axiom does this belief rely on? parent_hint"]
-    Stage2Header --> Q31["Q31: Does this belief explicitly reject or oppose
+    CategorizationCat --> Q31["Q31: Does this belief explicitly reject or oppose
     another belief/group/position in-group vs out-group?"]
     
     Q5 --> Compile["📦 Compile Belief Record
@@ -160,8 +167,10 @@ flowchart TD
     classDef aiStep fill:#87CEEB,stroke:#104e8b,stroke-width:2px,color:#000
     classDef dataStep fill:#FFE4B5,stroke:#8b6914,stroke-width:2px,color:#000
     classDef questionBox fill:#FFE4E1,stroke:#8b4513,stroke-width:1px,color:#000
+    classDef categoryHeader fill:#E6E6FA,stroke:#4B0082,stroke-width:2px,color:#000
     
     class AtomicHeader,Certainty newFeature
     class Filter,Stage2Header aiStep
     class DataFrame,SaveOutput,Stats dataStep
     class Q1,Q2,Q3,Q4,Q5,Q6,Q7,Q8,Q9,Q10,Q11,Q12,Q13,Q14,Q15,Q16,Q17,Q18,Q19,Q20,Q21,Q22,Q23,Q24,Q25,Q26,Q27,Q28,Q29,Q30,Q31,Rule1,Rule2,Rule3,Rule4,Rule5,Rule6 questionBox
+    class ConvictionCat,BeliefTypeCat,ClaimTypeCat,TierCat,ScoringCat,CategorizationCat categoryHeader
