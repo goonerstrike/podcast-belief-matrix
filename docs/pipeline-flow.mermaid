@@ -14,10 +14,11 @@ flowchart TD
     📜 extractor.py::extract_from_file()"}
     
     D --> E["🚦 Stage 1: Belief Filter
-    Q1: Contains identifiable belief?
-    Q2: Reveals what speaker believes?
-    Q3: Endorsed by speaker?
-    Q4: Reveals worldview/preferences?
+    Q1: Does this text contain at least one identifiable belief or value judgment?
+    Q2: Does this statement reveal what the speaker believes, even implicitly?
+    Q3: Is this belief likely endorsed or sympathetically discussed by the speaker?
+    Q4: Does this belief reveal anything about the speaker's worldview or preferences?
+    Pass: Q2+Q3+Q4=YES OR confidence≥0.6
     📜 classifier.py::stage1_filter()"]
     
     E --> F{"❓ Is Belief?
@@ -28,47 +29,62 @@ flowchart TD
     Questions, ads, greetings"]
     
     F -->|"✅ Yes - 30% pass filter"| H["⚡ Extract Atomic Beliefs
-    Extract ALL distinct beliefs as clean statements
-    Remove quotes, questions, fluff
-    Preserve speaker's intent
+    Rules: 1. Extract ALL distinct beliefs/claims
+    2. Each must be clear, standalone, atomic
+    3. Remove quotes, questions, narration, fluff
+    4. Do NOT add new meaning
+    5. Preserve speaker's intent
+    6. Return empty array if no beliefs
     📜 classifier.py::extract_atomic_beliefs()"]
     
     H --> I["🎯 Classify Certainty
-    binary: absolute statements
-    hedged: contains uncertainty markers
+    binary: Absolute with no hedging
+    hedged: Contains uncertainty markers might/could/probably/I think
     📜 prompts/atomic_belief_extraction.txt"]
     
     I --> J["🧠 Stage 2: Full Classification
-    Q5-7: Conviction indicators
-    Q8-13: Belief type classification
-    Q14-15: Claim type
-    Q16-26: Tier determination
-    Q27-28: Scoring
-    Q29-31: Categorization
+    Q5: Wording indicate strong/absolute commitment always/never/must/cannot?
+    Q6: Context suggest speaker repeats or consistently relies on this?
+    Q7: Speaker defend or justify against alternatives or objections?
+    Q8: About fundamental nature of reality, human nature, purpose, existence?
+    Q9: About how truth/knowledge formed, who/what to trust, evaluate info?
+    Q10: About broad moral principles right/wrong good/bad across situations?
+    Q11: Cross-domain principle speaker applies in multiple areas of life?
+    Q12: Primarily about large-scale systems state/markets/money/religion/tech/law?
+    Q13: Mainly about one specific domain Bitcoin/real estate/AI/health/education?
+    Q14: Concrete, testable, time-bound claim prediction/number/causal/empirical?
+    Q15: Casual preference, offhand comment, joke, brand line, exploratory musing?
     📜 classifier.py::stage2_classify()"]
     
     J --> K["🏆 Determine Primary Tier Q16-26
-    Core Axiom? Worldview Pillar?
-    Identity Value? Meta-Principle?
-    Cross-Domain Rule? Domain Belief?
-    Strategy? Claim? Opinion? Joke?
+    Q16: Core Axiom foundational, cross-domain, defended, stable?
+    Q17: Worldview Pillar big-picture moral/political/economic frame?
+    Q18: Identity-Defining Value this is who I am/we are?
+    Q19: Meta-Principle rule for how to choose/update beliefs?
+    Q20: Cross-Domain Rule or Heuristic action rule in many contexts?
+    Q21: Stable Domain Belief consistent stance within one topic?
+    Q22: Repeated Strategy or Playbook tactic speaker endorses/uses?
+    Q23: Concrete Claim or Prediction?
+    Q24: Situational Opinion tied to narrow context?
+    Q25: Loose Take/Joke/Aesthetic Vibe?
+    Q26: What is the SINGLE BEST-FITTING tier?
     📜 prompts/stage2_classify.txt"]
     J --> L["📊 Generate 10 Abstractions
     Rewrite belief at each tier level
     Tier 1 Core Axioms → Tier 10 Loose Takes
     📜 prompts/tier_abstraction.txt"]
     J --> M["💪 Conviction & Stability Q27-28
-    Q27: How strong is conviction? 0-1
-    Q28: How stable/long-term? 0-1
+    Q27: On 0-1 scale, how strong is speaker's conviction in this belief?
+    Q28: On 0-1 scale, how stable/long-term does this belief appear?
     📜 prompts/stage2_classify.txt"]
     J --> N["🌐 Score 4 Domains
     Scientific/tech, philosophical/religious
     Financial, political 0-1 each
     📜 prompts/stage2_classify.txt"]
     J --> O["🏷️ Assign Category Q29-31
-    Q29: epistemic, moral, political, etc.
-    Q30: Parent hint higher-level belief
-    Q31: Defines outgroup? yes/no
+    Q29: Single best-fitting category: epistemic, moral, political, economic, spiritual, social, tech, health, bitcoin/finance, other
+    Q30: In one short phrase, what higher-level belief or axiom does this rely on? parent_hint - leave empty if foundational
+    Q31: Does this belief explicitly reject or oppose another belief/group/position in-group vs out-group?
     📜 prompts/stage2_classify.txt"]
     
     K --> P["📦 Compile Belief Record
