@@ -1,131 +1,167 @@
 flowchart TD
-    A["📄 Start: Transcript File
-    Diarized text with speaker labels
-    📜 run_multilevel_extraction.py"] --> B["🔍 Parse Transcript
-    Extract speaker, timestamp, text
+    Start["📄 Start: Transcript File
+    📜 run_multilevel_extraction.py"] --> Parse["🔍 Parse Transcript
     📜 transcript_parser.py::parse_file()"]
     
-    B --> C["✂️ Split into Utterances
-    Each line becomes one utterance
+    Parse --> Split["✂️ Split into Utterances
     📜 transcript_parser.py::Utterance"]
     
-    C --> D{"🔄 For Each Utterance
-    Process 1 by 1 or in parallel
+    Split --> Loop{"🔄 For Each Utterance
     📜 extractor.py::extract_from_file()"}
     
-    D --> E["🚦 Stage 1: Belief Filter
-    Q1: Does this text contain at least one identifiable belief or value judgment?
-    Q2: Does this statement reveal what the speaker believes, even implicitly?
-    Q3: Is this belief likely endorsed or sympathetically discussed by the speaker?
-    Q4: Does this belief reveal anything about the speaker's worldview or preferences?
-    Pass: Q2+Q3+Q4=YES OR confidence≥0.6
+    Loop --> Filter["🚦 Stage 1: Belief Filter
     📜 classifier.py::stage1_filter()"]
     
-    E --> F{"❓ Is Belief?
-    Check filter confidence score
-    📜 classifier.py::classify()"}
+    Filter --> Q1["Q1: Does this text contain at least one
+    identifiable belief or value judgment?"]
+    Filter --> Q2["Q2: Does this statement reveal what
+    the speaker believes, even implicitly?"]
+    Filter --> Q3["Q3: Is this belief likely endorsed or
+    sympathetically discussed by the speaker?"]
+    Filter --> Q4["Q4: Does this belief reveal anything about
+    the speaker's worldview or preferences?"]
     
-    F -->|"❌ No - 70% filtered out"| G["⏭️ Skip
-    Questions, ads, greetings"]
+    Q1 --> IsBeliefCheck{"❓ Is Belief?
+    Pass: Q2+Q3+Q4=YES OR confidence≥0.6"}
+    Q2 --> IsBeliefCheck
+    Q3 --> IsBeliefCheck
+    Q4 --> IsBeliefCheck
     
-    F -->|"✅ Yes - 30% pass filter"| H["⚡ Extract Atomic Beliefs
-    Rules: 1. Extract ALL distinct beliefs/claims
-    2. Each must be clear, standalone, atomic
-    3. Remove quotes, questions, narration, fluff
-    4. Do NOT add new meaning
-    5. Preserve speaker's intent
-    6. Return empty array if no beliefs
+    IsBeliefCheck -->|"❌ No"| Skip["⏭️ Skip"]
+    
+    IsBeliefCheck -->|"✅ Yes"| AtomicHeader["⚡ Extract Atomic Beliefs
     📜 classifier.py::extract_atomic_beliefs()"]
     
-    H --> I["🎯 Classify Certainty
-    binary: Absolute with no hedging
-    hedged: Contains uncertainty markers might/could/probably/I think
-    📜 prompts/atomic_belief_extraction.txt"]
+    AtomicHeader --> Rule1["Rule 1: Extract ALL distinct beliefs/claims"]
+    AtomicHeader --> Rule2["Rule 2: Each must be clear, standalone, atomic"]
+    AtomicHeader --> Rule3["Rule 3: Remove quotes, questions, narration, fluff"]
+    AtomicHeader --> Rule4["Rule 4: Do NOT add new meaning"]
+    AtomicHeader --> Rule5["Rule 5: Preserve speaker's intent"]
+    AtomicHeader --> Rule6["Rule 6: Return empty array if no beliefs"]
     
-    I --> J["🧠 Stage 2: Full Classification
-    Q5: Wording indicate strong/absolute commitment always/never/must/cannot?
-    Q6: Context suggest speaker repeats or consistently relies on this?
-    Q7: Speaker defend or justify against alternatives or objections?
-    Q8: About fundamental nature of reality, human nature, purpose, existence?
-    Q9: About how truth/knowledge formed, who/what to trust, evaluate info?
-    Q10: About broad moral principles right/wrong good/bad across situations?
-    Q11: Cross-domain principle speaker applies in multiple areas of life?
-    Q12: Primarily about large-scale systems state/markets/money/religion/tech/law?
-    Q13: Mainly about one specific domain Bitcoin/real estate/AI/health/education?
-    Q14: Concrete, testable, time-bound claim prediction/number/causal/empirical?
-    Q15: Casual preference, offhand comment, joke, brand line, exploratory musing?
+    Rule1 --> Certainty["🎯 Classify Certainty
+    binary: Absolute with no hedging
+    hedged: Contains uncertainty markers"]
+    Rule2 --> Certainty
+    Rule3 --> Certainty
+    Rule4 --> Certainty
+    Rule5 --> Certainty
+    Rule6 --> Certainty
+    
+    Certainty --> Stage2Header["🧠 Stage 2: Full Classification
     📜 classifier.py::stage2_classify()"]
     
-    J --> K["🏆 Determine Primary Tier Q16-26
-    Q16: Core Axiom foundational, cross-domain, defended, stable?
-    Q17: Worldview Pillar big-picture moral/political/economic frame?
-    Q18: Identity-Defining Value this is who I am/we are?
-    Q19: Meta-Principle rule for how to choose/update beliefs?
-    Q20: Cross-Domain Rule or Heuristic action rule in many contexts?
-    Q21: Stable Domain Belief consistent stance within one topic?
-    Q22: Repeated Strategy or Playbook tactic speaker endorses/uses?
-    Q23: Concrete Claim or Prediction?
-    Q24: Situational Opinion tied to narrow context?
-    Q25: Loose Take/Joke/Aesthetic Vibe?
-    Q26: What is the SINGLE BEST-FITTING tier?
-    📜 prompts/stage2_classify.txt"]
-    J --> L["📊 Generate 10 Abstractions
-    Rewrite belief at each tier level
-    Tier 1 Core Axioms → Tier 10 Loose Takes
-    📜 prompts/tier_abstraction.txt"]
-    J --> M["💪 Conviction & Stability Q27-28
-    Q27: On 0-1 scale, how strong is speaker's conviction in this belief?
-    Q28: On 0-1 scale, how stable/long-term does this belief appear?
-    📜 prompts/stage2_classify.txt"]
-    J --> N["🌐 Score 4 Domains
-    Scientific/tech, philosophical/religious
-    Financial, political 0-1 each
-    📜 prompts/stage2_classify.txt"]
-    J --> O["🏷️ Assign Category Q29-31
-    Q29: Single best-fitting category: epistemic, moral, political, economic, spiritual, social, tech, health, bitcoin/finance, other
-    Q30: In one short phrase, what higher-level belief or axiom does this rely on? parent_hint - leave empty if foundational
-    Q31: Does this belief explicitly reject or oppose another belief/group/position in-group vs out-group?
-    📜 prompts/stage2_classify.txt"]
+    Stage2Header --> Q5["Q5: Does wording indicate strong/absolute
+    commitment always/never/must/cannot?"]
+    Stage2Header --> Q6["Q6: Does context suggest speaker repeats
+    or consistently relies on this belief?"]
+    Stage2Header --> Q7["Q7: Does speaker defend or justify this belief
+    against alternatives or objections?"]
     
-    K --> P["📦 Compile Belief Record
-    Combine all fields into one row
+    Stage2Header --> Q8["Q8: Is this belief about fundamental nature of
+    reality, human nature, purpose, or existence?"]
+    Stage2Header --> Q9["Q9: Is this belief about how truth/knowledge
+    should be formed, who/what to trust?"]
+    Stage2Header --> Q10["Q10: Is this belief about broad moral principles
+    of right/wrong or good/bad across situations?"]
+    Stage2Header --> Q11["Q11: Is this belief a cross-domain principle
+    speaker applies in multiple areas of life?"]
+    Stage2Header --> Q12["Q12: Is this belief primarily about large-scale
+    systems state/markets/money/religion/tech/law?"]
+    Stage2Header --> Q13["Q13: Is this belief mainly about one specific
+    domain Bitcoin/real estate/AI/health/education?"]
+    
+    Stage2Header --> Q14["Q14: Is this statement concrete, testable,
+    or time-bound claim prediction/empirical assertion?"]
+    Stage2Header --> Q15["Q15: Is this statement casual preference,
+    offhand comment, joke, or musing?"]
+    
+    Stage2Header --> Q16["Q16: Should this be labeled as Core Axiom
+    foundational, cross-domain, defended, stable?"]
+    Stage2Header --> Q17["Q17: Should this be labeled as Worldview Pillar
+    big-picture moral/political/economic frame?"]
+    Stage2Header --> Q18["Q18: Should this be labeled as Identity-Defining Value
+    this is who I am / we are?"]
+    Stage2Header --> Q19["Q19: Should this be labeled as Meta-Principle
+    rule for how to choose/update beliefs?"]
+    Stage2Header --> Q20["Q20: Should this be labeled as Cross-Domain Rule
+    or Heuristic action rule in many contexts?"]
+    Stage2Header --> Q21["Q21: Should this be labeled as Stable Domain Belief
+    consistent stance within one topic?"]
+    Stage2Header --> Q22["Q22: Should this be labeled as Repeated Strategy
+    or Playbook tactic speaker endorses/uses?"]
+    Stage2Header --> Q23["Q23: Should this be labeled as Concrete Claim
+    or Prediction?"]
+    Stage2Header --> Q24["Q24: Should this be labeled as Situational Opinion
+    tied to a narrow context?"]
+    Stage2Header --> Q25["Q25: Should this be labeled as Loose Take
+    Joke or Aesthetic Vibe?"]
+    Stage2Header --> Q26["Q26: What is the SINGLE BEST-FITTING tier?
+    Choose ONE from Q16-25"]
+    
+    Stage2Header --> Q27["Q27: On a 0-1 scale, how strong is
+    the speaker's conviction in this belief?"]
+    Stage2Header --> Q28["Q28: On a 0-1 scale, how stable/long-term
+    does this belief appear given the context?"]
+    
+    Stage2Header --> Q29["Q29: What is the single best-fitting category label?
+    epistemic/moral/political/economic/spiritual/social/tech/health/bitcoin/other"]
+    Stage2Header --> Q30["Q30: In one short phrase, what higher-level belief
+    or axiom does this belief rely on? parent_hint"]
+    Stage2Header --> Q31["Q31: Does this belief explicitly reject or oppose
+    another belief/group/position in-group vs out-group?"]
+    
+    Q5 --> Compile["📦 Compile Belief Record
     📜 classifier.py::BeliefClassification"]
-    L --> P
-    M --> P
-    N --> P
-    O --> P
-    I --> P
+    Q6 --> Compile
+    Q7 --> Compile
+    Q8 --> Compile
+    Q9 --> Compile
+    Q10 --> Compile
+    Q11 --> Compile
+    Q12 --> Compile
+    Q13 --> Compile
+    Q14 --> Compile
+    Q15 --> Compile
+    Q16 --> Compile
+    Q17 --> Compile
+    Q18 --> Compile
+    Q19 --> Compile
+    Q20 --> Compile
+    Q21 --> Compile
+    Q22 --> Compile
+    Q23 --> Compile
+    Q24 --> Compile
+    Q25 --> Compile
+    Q26 --> Compile
+    Q27 --> Compile
+    Q28 --> Compile
+    Q29 --> Compile
+    Q30 --> Compile
+    Q31 --> Compile
     
-    P --> Q{"🔁 More Utterances?
-    Continue until all processed
-    📜 classifier.py::classify_batch()"}
-    
-    Q -->|Yes| D
-    Q -->|No| R["🗂️ Create DataFrame
-    Convert to pandas table
+    Compile --> MoreUtterances{"🔁 More Utterances?"}
+    MoreUtterances -->|Yes| Loop
+    MoreUtterances -->|No| DataFrame["🗂️ Create DataFrame
     📜 extractor.py::_to_dataframe()"]
     
-    R --> S["➕ Add New Columns
-    atomic_belief, certainty + 14 others
-    📜 extractor.py::_to_dataframe()"]
-    
-    S --> T["💾 Save Output
-    CSV/Parquet with all weights
+    DataFrame --> SaveOutput["💾 Save Output CSV/Parquet
     📜 multilevel_extractor.py::save_output()"]
     
-    T --> U["📈 Calculate Summary Stats
-    Counts, averages, costs
+    SaveOutput --> Stats["📈 Calculate Summary Stats
     📜 multilevel_extractor.py::get_cost_stats()"]
     
-    U --> V["✨ Display Results
-    Total beliefs, speakers, cost
+    Stats --> Display["✨ Display Results
     📜 run_multilevel_extraction.py"]
+    
+    Skip --> MoreUtterances
     
     classDef newFeature fill:#90EE90,stroke:#2d5016,stroke-width:2px,color:#000
     classDef aiStep fill:#87CEEB,stroke:#104e8b,stroke-width:2px,color:#000
     classDef dataStep fill:#FFE4B5,stroke:#8b6914,stroke-width:2px,color:#000
+    classDef questionBox fill:#FFE4E1,stroke:#8b4513,stroke-width:1px,color:#000
     
-    class H,I,S newFeature
-    class E,J aiStep
-    class R,T,U dataStep
-
+    class AtomicHeader,Certainty newFeature
+    class Filter,Stage2Header aiStep
+    class DataFrame,SaveOutput,Stats dataStep
+    class Q1,Q2,Q3,Q4,Q5,Q6,Q7,Q8,Q9,Q10,Q11,Q12,Q13,Q14,Q15,Q16,Q17,Q18,Q19,Q20,Q21,Q22,Q23,Q24,Q25,Q26,Q27,Q28,Q29,Q30,Q31,Rule1,Rule2,Rule3,Rule4,Rule5,Rule6 questionBox
