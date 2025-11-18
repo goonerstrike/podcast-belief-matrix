@@ -40,7 +40,8 @@ class BeliefGraph:
                 importance=int(belief['importance']),
                 conviction=float(belief['conviction_score']),
                 stability=float(belief['stability_score']),
-                category=belief['category']
+                category=belief['category'],
+                sub_domain=belief.get('sub_domain', '')
             )
         
         # Add edges (parent-child relationships)

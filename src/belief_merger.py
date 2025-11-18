@@ -43,6 +43,11 @@ class BeliefMerger:
         """
         if df.empty:
             return df, pd.DataFrame()
+
+        if 'sub_domain' not in df.columns:
+            df['sub_domain'] = 'general'
+        else:
+            df['sub_domain'] = df['sub_domain'].fillna('general')
         
         print(f"\n🔗 Deduplicating beliefs...")
         print(f"   Input: {len(df)} beliefs")
@@ -251,6 +256,7 @@ class BeliefMerger:
                 'importance': int(group_df['importance'].mode().iloc[0]),
                 'tier_name': group_df['tier_name'].mode().iloc[0],
                 'category': group_df['category'].mode().iloc[0],
+                'sub_domain': group_df['sub_domain'].mode().iloc[0],
                 'conviction_score': float(group_df['conviction_score'].mean()),
                 'stability_score': float(group_df['stability_score'].mean()),
                 'parent_hint': group_df['parent_hint'].iloc[0],

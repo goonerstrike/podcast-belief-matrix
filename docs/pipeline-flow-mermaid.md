@@ -126,7 +126,9 @@ flowchart TD
     
     CategorizationCat --> Q29["Q29: What is the single best-fitting category label?
     epistemic/moral/political/economic/spiritual/social/tech/health/bitcoin/other"]
-    Q29 --> Q30["Q30: In one short phrase, what higher-level belief
+    Q29 --> Q29b["Q29b: Provide sub-domain/topic slug (1-4 words)
+    lowercase, e.g. self_custody (general if unclear)"]
+    Q29b --> Q30["Q30: In one short phrase, what higher-level belief
     or axiom does this belief rely on? parent_hint"]
     Q30 --> Q31["Q31: Does this belief explicitly reject or oppose
     another belief/group/position in-group vs out-group?"]
@@ -144,12 +146,11 @@ flowchart TD
     MoreUtterances -->|No| DataFrame["🗂️ Create DataFrame
     📜 extractor.py::_to_dataframe()"]
     
-    DataFrame --> SaveOutput["💾 Save Output CSV Files
-    beliefs_multilevel_{episode_id}.csv
-    beliefs_deduplicated_{episode_id}.csv
-    beliefs_linked_{episode_id}.csv
-    belief_mapping_{episode_id}.csv
-    dashboard_{episode_id}.html
+    DataFrame --> SaveOutput["💾 Save Output (per episode folder)
+    output/{episode_id}/beliefs_multilevel.csv
+    output/{episode_id}/beliefs_deduplicated.csv
+    output/{episode_id}/beliefs_linked.csv
+    output/{episode_id}/belief_mapping.csv
     📜 multilevel_extractor.py::save_output()"]
     
     SaveOutput --> Stats["📈 Calculate Summary Stats
@@ -169,6 +170,6 @@ flowchart TD
     class AtomicHeader,Certainty newFeature
     class Filter,Stage2Header aiStep
     class DataFrame,SaveOutput,Stats dataStep
-    class Q1,Q2,Q3,Q4,Q5,Q6,Q7,Q8,Q9,Q10,Q11,Q12,Q13,Q14,Q15,Q16,Q17,Q18,Q19,Q20,Q21,Q22,Q23,Q24,Q25,Q26,Q27,Q28,Q29,Q30,Q31,Rule1,Rule2,Rule3,Rule4,Rule5,Rule6 questionBox
+    class Q1,Q2,Q3,Q4,Q5,Q6,Q7,Q8,Q9,Q10,Q11,Q12,Q13,Q14,Q15,Q16,Q17,Q18,Q19,Q20,Q21,Q22,Q23,Q24,Q25,Q26,Q27,Q28,Q29,Q29b,Q30,Q31,Rule1,Rule2,Rule3,Rule4,Rule5,Rule6 questionBox
     class ConvictionCat,BeliefTypeCat,ClaimTypeCat,TierCat,ScoringCat,CategorizationCat categoryHeader
 ```

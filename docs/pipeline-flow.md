@@ -255,6 +255,8 @@ Comprehensive 27-question analysis (Q5-Q31) - exact LLM prompts:
 **Q29**: What is the single best-fitting category label for this belief?
 (Choose ONE: epistemic, moral, political, economic, spiritual, social, tech, health, bitcoin/finance, other)
 
+**Q29b**: Provide a short SUB-DOMAIN/topic label (1-4 words) describing the specific focus inside that category (e.g., "self-custody", "archaeology methods"). Use lowercase slug-style words. If unclear, return "general".
+
 **Q30**: In one short phrase, what higher-level belief or axiom does this belief most likely instantiate or rely on?
 (This is the "parent_hint" - leave empty if this seems foundational)
 
@@ -276,6 +278,7 @@ The final CSV/Parquet includes:
 | `importance` | Primary tier (1-10) |
 | `tier_name` | Tier label |
 | `category` | Belief category |
+| `sub_domain` | Fine-grained topic label within the category |
 | `conviction_score` | Speaker conviction (0-1) |
 | `stability_score` | Long-term stability (0-1) |
 | `parent_hint` | Parent belief description |

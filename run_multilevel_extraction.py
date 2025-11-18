@@ -18,15 +18,41 @@ import click
 import os
 import yaml
 import glob
+import time
 from pathlib import Path
 from dotenv import load_dotenv
 from src.multilevel_extractor import MultiLevelExtractor
 from src.belief_merger import BeliefMerger
 from src.belief_linker import BeliefLinker
 from src.wandb_logger import WandbLogger
+from src.belief_analyzer_stats import BeliefStatsAnalyzer
+from src.belief_graph_metrics import BeliefGraphMetrics
 
 # Load environment variables
 load_dotenv()
+
+
+def _build_quality_metrics(df_raw, df_dedup, df_linked, mapping_df, hierarchy_stats):
+    """Assemble quality metrics for logging."""
+    metrics = {
+        'raw_beliefs': len(df_raw),
+        'post_dedup_beliefs': len(df_dedup),
+        'final_beliefs': len(df_linked),
+        'retention_rate': round((len(df_linked) / len(df_raw) * 100), 2) if len(df_raw) else 0.0
+    }
+
+    if mapping_df is not None and not mapping_df.empty:
+        if 'duplicate_group_id' in mapping_df.columns:
+            metrics['dedup_duplicate_groups'] = int(mapping_df['duplicate_group_id'].nunique())
+        if 'reinforcement_count' in mapping_df.columns:
+            metrics['dedup_avg_reinforcement'] = float(round(mapping_df['reinforcement_count'].mean(), 2))
+        metrics['duplicate_samples'] = mapping_df.head(25).to_dict(orient='records')
+
+    if hierarchy_stats:
+        for key, value in hierarchy_stats.items():
+            metrics[f'hierarchy_{key}'] = value
+
+    return metrics
 
 
 @click.command()
@@ -52,13 +78,15 @@ load_dotenv()
               help='Similarity threshold for deduplication (default: 0.85)')
 @click.option('--levels', default=None,
               help='Comma-separated list of chunk sizes (e.g., "1,2,4,8")')
+@click.option('--workers', default=1, type=int,
+              help='Number of parallel workers for API calls (default: 1, recommended: 4)')
 @click.option('--no-wandb', is_flag=True,
               help='Skip W&B logging')
 @click.option('--config', type=click.Path(exists=True),
               default='config/settings.yaml',
               help='Config file path')
 def main(transcript, input_dir, episode_id, cheap_mode, max_words, model, output_dir,
-         no_dedup, no_linking, dedup_threshold, levels, no_wandb, config):
+         no_dedup, no_linking, dedup_threshold, levels, workers, no_wandb, config):
     """Multi-level belief extraction from podcast transcripts.
     
     By default, scans input/ directory and processes all .txt files.
@@ -69,6 +97,11 @@ def main(transcript, input_dir, episode_id, cheap_mode, max_words, model, output
     print("=" * 80)
     print("🌐 Multi-Level Podcast Belief Extraction Pipeline")
     print("=" * 80)
+    
+    # Validate workers
+    if workers > 10:
+        click.echo("⚠️  WARNING: Using more than 10 workers may hit OpenAI rate limits", err=True)
+        click.echo("   Recommended: 4-6 workers for optimal performance", err=True)
     
     # Load config
     if Path(config).exists():
@@ -84,6 +117,9 @@ def main(transcript, input_dir, episode_id, cheap_mode, max_words, model, output
         click.echo("   Create .env file with: OPENAI_API_KEY=your-key-here", err=True)
         return
     
+    stats_analyzer = BeliefStatsAnalyzer()
+    graph_metrics_analyzer = BeliefGraphMetrics()
+
     # Determine which transcripts to process
     transcripts_to_process = []
     
@@ -125,17 +161,22 @@ def main(transcript, input_dir, episode_id, cheap_mode, max_words, model, output
         else:
             level_list = None  # Use defaults
         
-        # Create output directory
+        # Create per-episode output directory
         output_path = Path(output_dir)
-        output_path.mkdir(exist_ok=True)
+        output_path.mkdir(parents=True, exist_ok=True)
+        run_output_dir = output_path / episode_id
+        run_output_dir.mkdir(parents=True, exist_ok=True)
         
         # Initialize W&B
         wandb_logger = None
         if not no_wandb and os.getenv('WANDB_MODE') != 'disabled':
-            run_name = f"{episode_id}_multilevel_{'cheap' if cheap_mode else 'full'}"
+            run_name = f"{episode_id}_multilevel_{'cheap' if cheap_mode else 'full'}_w{workers}"
             tags = ['multi-level']
             if cheap_mode:
                 tags.append('cheap-mode')
+            # Add benchmark tags if this is a benchmark run
+            if 'bench_' in episode_id:
+                tags.extend(['benchmark', 'worker-comparison'])
             
             wandb_config = {
                 'episode_id': episode_id,
@@ -145,6 +186,7 @@ def main(transcript, input_dir, episode_id, cheap_mode, max_words, model, output
                 'deduplication': not no_dedup,
                 'linking': not no_linking,
                 'levels': level_list,
+                'workers': workers,
                 'transcript_file': transcript_path
             }
             
@@ -162,6 +204,7 @@ def main(transcript, input_dir, episode_id, cheap_mode, max_words, model, output
         print(f"   Transcript: {transcript_path}")
         print(f"   Episode ID: {episode_id}")
         print(f"   Model: {model}")
+        print(f"   Workers: {workers} {'(parallel)' if workers > 1 else '(sequential)'}")
         print(f"   Cheap mode: {'Yes (' + str(max_words) + ' words)' if cheap_mode else 'No'}")
         print(f"   Deduplication: {'Disabled' if no_dedup else f'Enabled (threshold: {dedup_threshold})'}")
         print(f"   Belief linking: {'Disabled' if no_linking else 'Enabled'}")
@@ -171,20 +214,24 @@ def main(transcript, input_dir, episode_id, cheap_mode, max_words, model, output
         extractor = MultiLevelExtractor(
             api_key=api_key,
             model=model,
-            prompts_dir='prompts'
+            prompts_dir='prompts',
+            max_workers=workers
         )
         
         # Extract beliefs at all levels
         print(f"🚀 Starting multi-level extraction...")
+        start_time = time.time()
         df_raw = extractor.extract_multilevel(
             transcript_path=transcript_path,
             episode_id=episode_id,
             levels=level_list,
             max_words=max_words if cheap_mode else None
         )
+        end_time = time.time()
+        total_extraction_time = end_time - start_time
         
         # Save raw beliefs
-        raw_output = output_path / f'beliefs_multilevel_{episode_id}.csv'
+        raw_output = run_output_dir / f'beliefs_multilevel_{episode_id}.csv'
         extractor.save_output(df_raw, raw_output)
         
         # Deduplication
@@ -195,17 +242,19 @@ def main(transcript, input_dir, episode_id, cheap_mode, max_words, model, output
             df_dedup, mapping_df = merger.merge_beliefs(df_raw, keep_strategy="all")
             
             # Save deduplicated beliefs
-            dedup_output = output_path / f'beliefs_deduplicated_{episode_id}.csv'
+            dedup_output = run_output_dir / f'beliefs_deduplicated_{episode_id}.csv'
             df_dedup.to_csv(dedup_output, index=False)
             print(f"💾 Saved deduplicated beliefs to {dedup_output}")
             
             if mapping_df is not None and not mapping_df.empty:
-                mapping_output = output_path / f'belief_mapping_{episode_id}.csv'
+                mapping_output = run_output_dir / f'belief_mapping_{episode_id}.csv'
                 mapping_df.to_csv(mapping_output, index=False)
                 print(f"💾 Saved duplicate mapping to {mapping_output}")
         
         # Belief linking
         df_linked = df_dedup
+        hierarchy_stats = {}
+        linked_output = run_output_dir / f'beliefs_linked_{episode_id}.csv'
         if not no_linking:
             linker = BeliefLinker()
             df_linked = linker.link_beliefs(df_dedup)
@@ -217,12 +266,22 @@ def main(transcript, input_dir, episode_id, cheap_mode, max_words, model, output
                 print(f"   {key}: {value}")
             
             # Save linked beliefs
-            linked_output = output_path / f'beliefs_linked_{episode_id}.csv'
             df_linked.to_csv(linked_output, index=False)
             print(f"💾 Saved linked beliefs to {linked_output}")
+        else:
+            df_linked.to_csv(linked_output, index=False)
+            print(f"💾 Saved beliefs (linking skipped) to {linked_output}")
+        
+        stats_payload = stats_analyzer.analyze(df_linked)
+        graph_metrics = graph_metrics_analyzer.analyze(df_linked)
+        quality_metrics = _build_quality_metrics(df_raw, df_dedup, df_linked, mapping_df, hierarchy_stats)
         
         # Get cost statistics
         cost_stats = extractor.get_cost_stats()
+        
+        # Calculate performance metrics
+        total_chunks = len(df_raw)  # Each row is a chunk that was processed
+        throughput = total_chunks / total_extraction_time if total_extraction_time > 0 else 0
         
         # Print summary
         print(f"\n{'='*80}")
@@ -231,6 +290,10 @@ def main(transcript, input_dir, episode_id, cheap_mode, max_words, model, output
         if not no_dedup:
             print(f"   After deduplication: {len(df_dedup)}")
         print(f"   Final output: {len(df_linked)}")
+        print(f"\n⏱️  Performance:")
+        print(f"   Extraction time: {total_extraction_time:.2f}s")
+        print(f"   Throughput: {throughput:.2f} chunks/sec")
+        print(f"   Workers: {workers}")
         print(f"\n💰 Cost:")
         print(f"   Total tokens: {cost_stats['total_tokens']}")
         print(f"   Total cost: ${cost_stats['total_cost']:.4f}")
@@ -257,10 +320,18 @@ def main(transcript, input_dir, episode_id, cheap_mode, max_words, model, output
             
             wandb_logger.log_metrics(metrics)
             wandb_logger.log_cost(cost_stats)
+            wandb_logger.log_statistical_analysis(stats_payload)
+            wandb_logger.log_graph_metrics(graph_metrics)
+            wandb_logger.log_quality_metrics(quality_metrics)
             
-            # Log visualizations if we have beliefs
-            if len(df_linked) > 0:
-                wandb_logger.log_all_visualizations(df_linked)
+            # Log performance metrics
+            performance_stats = {
+                'total_time': total_extraction_time,
+                'workers': workers,
+                'total_chunks': total_chunks,
+                'throughput': throughput
+            }
+            wandb_logger.log_performance(performance_stats)
             
             # Log artifacts
             wandb_logger.log_artifacts(
@@ -270,33 +341,8 @@ def main(transcript, input_dir, episode_id, cheap_mode, max_words, model, output
             
             wandb_logger.finish()
         
-        # Generate and auto-open dashboard
-        if len(df_linked) > 0:
-            import webbrowser
-            from src.dashboard_generator import generate_dashboard_html
-            
-            dashboard_path = output_path / f'dashboard_{episode_id}.html'
-            
-            print(f"\n🎨 Generating dashboard...")
-            try:
-                generated_html = generate_dashboard_html(
-                    csv_path=str(linked_output),
-                    output_html_path=str(dashboard_path),
-                    episode_id=episode_id
-                )
-                print(f"💾 Dashboard saved to: {dashboard_path}")
-                
-                # Auto-open in browser (only for first file in batch)
-                if idx == 1:
-                    print(f"🚀 Opening dashboard in browser...")
-                    webbrowser.open(f'file://{generated_html}')
-                    print(f"📊 Dashboard opened!")
-                else:
-                    print(f"📊 Dashboard ready at: {dashboard_path}")
-            except Exception as e:
-                print(f"⚠️  Dashboard generation failed: {e}")
-                print(f"   You can still view results in: {linked_output}")
-        
+        # Dashboard generation disabled (handled separately)
+        print("ℹ️  Local dashboard generation is currently disabled. Use W&B for analytics.")
         print(f"\n✅ Done! Final beliefs saved to: {linked_output}")
 
 

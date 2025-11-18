@@ -5,6 +5,7 @@ Processes transcripts at multiple abstraction levels to capture beliefs across s
 import pandas as pd
 from pathlib import Path
 from typing import List, Dict, Optional
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from .transcript_parser import TranscriptParser, Utterance
 from .classifier import BeliefClassifier, BeliefClassification
 from .chunker import TranscriptChunker, Chunk
@@ -16,7 +17,8 @@ class MultiLevelExtractor:
     
     def __init__(self, api_key: str, model: str = "gpt-4o-mini",
                  prompts_dir: str = "prompts",
-                 chunking_strategy: str = "exponential"):
+                 chunking_strategy: str = "exponential",
+                 max_workers: int = 1):
         """
         Initialize multi-level extractor.
         
@@ -25,14 +27,17 @@ class MultiLevelExtractor:
             model: Model to use for classification
             prompts_dir: Directory with prompt templates
             chunking_strategy: Strategy for chunking ('exponential', 'linear', 'custom')
+            max_workers: Number of parallel workers for API calls (default: 1)
         """
         self.classifier = BeliefClassifier(
             api_key=api_key,
             model=model,
-            prompts_dir=prompts_dir
+            prompts_dir=prompts_dir,
+            max_workers=max_workers
         )
         self.chunker = TranscriptChunker(strategy=chunking_strategy)
         self.model = model
+        self.max_workers = max_workers
         
     def extract_multilevel(self, transcript_path: str,
                           episode_id: Optional[str] = None,
@@ -105,29 +110,21 @@ class MultiLevelExtractor:
         
         return df
     
-    def _extract_from_chunks(self, chunks: List[Chunk], 
-                            level: int, episode_id: str) -> List[Dict]:
+    def _process_single_chunk(self, chunk: Chunk, level: int, episode_id: str) -> Optional[Dict]:
         """
-        Extract beliefs from all chunks at a specific level.
+        Process a single chunk and return belief dict if found.
         
         Args:
-            chunks: List of chunks to process
+            chunk: Chunk to process
             level: Level number
             episode_id: Episode identifier
             
         Returns:
-            List of belief dictionaries with metadata
+            Belief dictionary or None if not a belief
         """
-        beliefs = []
-        
-        # Process each chunk
-        for chunk in tqdm(chunks, desc=f"Level {level}", leave=False):
-            # For each chunk, we treat it as a single "meta-utterance"
-            # This allows the classifier to see the full context
-            
+        try:
             # Create a synthetic utterance representing this chunk
             chunk_text = chunk.to_text()
-            speakers = chunk.get_speakers()
             start_time, end_time = chunk.get_time_range()
             
             # Get primary speaker (most utterances in chunk)
@@ -143,9 +140,9 @@ class MultiLevelExtractor:
                 statement_text=chunk_text
             )
             
-            # Only keep beliefs
+            # Only return if it's a belief
             if classification.is_belief:
-                belief_dict = {
+                return {
                     'discovery_level': level,
                     'chunk_id': chunk.chunk_id,
                     'chunk_size': chunk.size,
@@ -159,11 +156,56 @@ class MultiLevelExtractor:
                     'conviction_score': classification.conviction_score,
                     'stability_score': classification.stability_score,
                     'category': classification.category,
+                    'sub_domain': getattr(classification, 'sub_domain', None),
                     'parent_hint': classification.parent_hint,
                     'defines_outgroup': classification.defines_outgroup,
                     'episode_id': episode_id
                 }
-                beliefs.append(belief_dict)
+            return None
+            
+        except Exception as e:
+            print(f"   ⚠️  Error processing chunk {chunk.chunk_id}: {e}")
+            return None
+    
+    def _extract_from_chunks(self, chunks: List[Chunk], 
+                            level: int, episode_id: str) -> List[Dict]:
+        """
+        Extract beliefs from all chunks at a specific level.
+        
+        Args:
+            chunks: List of chunks to process
+            level: Level number
+            episode_id: Episode identifier
+            
+        Returns:
+            List of belief dictionaries with metadata
+        """
+        beliefs = []
+        
+        # Sequential processing (workers=1)
+        if self.max_workers == 1:
+            for chunk in tqdm(chunks, desc=f"Level {level}", leave=False):
+                belief = self._process_single_chunk(chunk, level, episode_id)
+                if belief:
+                    beliefs.append(belief)
+        
+        # Parallel processing (workers>1)
+        else:
+            with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                # Submit all chunks for processing
+                future_to_chunk = {
+                    executor.submit(self._process_single_chunk, chunk, level, episode_id): chunk
+                    for chunk in chunks
+                }
+                
+                # Collect results with progress bar
+                for future in tqdm(as_completed(future_to_chunk), 
+                                 total=len(chunks), 
+                                 desc=f"Level {level}", 
+                                 leave=False):
+                    belief = future.result()
+                    if belief:
+                        beliefs.append(belief)
         
         return beliefs
     
@@ -187,7 +229,7 @@ class MultiLevelExtractor:
         columns = [
             'belief_id', 'discovery_level', 'chunk_id', 'chunk_size',
             'speaker_id', 'episode_id', 'timestamp', 'statement_text',
-            'importance', 'tier_name', 'category', 
+            'importance', 'tier_name', 'category', 'sub_domain',
             'conviction_score', 'stability_score',
             'parent_hint', 'parent_belief_id', 'defines_outgroup',
             'filter_confidence'
@@ -207,7 +249,7 @@ class MultiLevelExtractor:
         columns = [
             'belief_id', 'discovery_level', 'chunk_id', 'chunk_size',
             'speaker_id', 'episode_id', 'timestamp', 'statement_text',
-            'importance', 'tier_name', 'category', 
+            'importance', 'tier_name', 'category', 'sub_domain',
             'conviction_score', 'stability_score',
             'parent_hint', 'parent_belief_id', 'defines_outgroup',
             'filter_confidence'

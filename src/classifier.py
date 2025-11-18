@@ -5,6 +5,7 @@ Stage 2: Classify belief details
 """
 import json
 import os
+import threading
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
@@ -33,6 +34,7 @@ class BeliefClassification:
     conviction_score: Optional[float] = None
     stability_score: Optional[float] = None
     category: Optional[str] = None
+    sub_domain: Optional[str] = None
     parent_hint: Optional[str] = None
     defines_outgroup: Optional[bool] = None
     
@@ -55,6 +57,7 @@ class BeliefClassification:
             'conviction_score': self.conviction_score,
             'stability_score': self.stability_score,
             'category': self.category,
+            'sub_domain': self.sub_domain,
             'parent_hint': self.parent_hint,
             'defines_outgroup': self.defines_outgroup,
             'stage1_responses': self.stage1_responses,
@@ -66,7 +69,8 @@ class BeliefClassifier:
     """Two-stage belief classifier."""
     
     def __init__(self, api_key: str, model: str = "gpt-4o-mini", 
-                 temperature: float = 0.1, prompts_dir: str = "prompts"):
+                 temperature: float = 0.1, prompts_dir: str = "prompts",
+                 max_workers: int = 1):
         """
         Initialize classifier.
         
@@ -75,20 +79,23 @@ class BeliefClassifier:
             model: Model to use
             temperature: Temperature for generation
             prompts_dir: Directory containing prompt templates
+            max_workers: Number of parallel workers (default: 1)
         """
         self.client = OpenAI(api_key=api_key)
         self.model = model
         self.temperature = temperature
         self.prompts_dir = Path(prompts_dir)
+        self.max_workers = max_workers
         
         # Load prompts
         self.stage1_prompt = self._load_prompt("stage1_filter.txt")
         self.stage2_prompt = self._load_prompt("stage2_classify.txt")
         self.atomic_extraction_prompt = self._load_prompt("atomic_belief_extraction.txt")
         
-        # Cost tracking
+        # Cost tracking (thread-safe)
         self.total_tokens = 0
         self.total_cost = 0.0
+        self._cost_lock = threading.Lock()
         
     def _load_prompt(self, filename: str) -> str:
         """Load prompt template from file."""
@@ -114,10 +121,11 @@ class BeliefClassifier:
         prompt_tokens = response.usage.prompt_tokens
         completion_tokens = response.usage.completion_tokens
         
-        # Update cost tracking (gpt-4o-mini pricing)
+        # Update cost tracking (gpt-4o-mini pricing) - thread-safe
         cost = (prompt_tokens * 0.00015 / 1000) + (completion_tokens * 0.0006 / 1000)
-        self.total_tokens += (prompt_tokens + completion_tokens)
-        self.total_cost += cost
+        with self._cost_lock:
+            self.total_tokens += (prompt_tokens + completion_tokens)
+            self.total_cost += cost
         
         return content, prompt_tokens, completion_tokens
     
@@ -175,6 +183,7 @@ class BeliefClassifier:
                 "conviction_score": 0.5,
                 "stability_score": 0.5,
                 "category": "other",
+                "sub_domain": "general",
                 "parent_hint": "",
                 "defines_outgroup": False
             }
@@ -263,6 +272,7 @@ class BeliefClassifier:
             conviction_score=stage2.get("conviction_score"),
             stability_score=stage2.get("stability_score"),
             category=stage2.get("category"),
+            sub_domain=stage2.get("sub_domain", "general"),
             parent_hint=stage2.get("parent_hint", ""),
             defines_outgroup=stage2.get("defines_outgroup"),
             stage1_responses=stage1,

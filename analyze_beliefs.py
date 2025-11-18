@@ -87,6 +87,17 @@ def main(beliefs_file, export_metrics, export_graph, export_report,
         pct = (count / summary_stats['total_beliefs']) * 100
         print(f"   {category.capitalize():20s}: {count:4d} ({pct:5.1f}%)")
     
+    sub_domains = summary_stats.get('beliefs_per_sub_domain', {})
+    if sub_domains:
+        print(f"\n{'='*80}")
+        print(f"📌 Top Sub-domains")
+        print(f"{'='*80}")
+        for sub_domain, count in sorted(sub_domains.items(),
+                                        key=lambda x: x[1],
+                                        reverse=True)[:10]:
+            pct = (count / summary_stats['total_beliefs']) * 100
+            print(f"   {sub_domain:25s}: {count:4d} ({pct:5.1f}%)")
+    
     # Build graph
     graph_builder = BeliefGraph()
     graph = graph_builder.build_graph(df_with_metrics)

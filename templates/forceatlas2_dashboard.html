@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Belief Network Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        color-scheme: light dark;
+        --sidebar-width: 320px;
+        --panel-width: 360px;
+        --bg: #101218;
+        --panel: #161a23;
+        --text: #f5f5f7;
+        --muted: #8f9bb3;
+        --accent: #5c7cfa;
+        --success: #51cf66;
+        --error: #ff6b6b;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text);
+        display: grid;
+        grid-template-columns: var(--sidebar-width) 1fr var(--panel-width);
+        grid-template-rows: 100vh;
+        overflow: hidden;
+      }
+
+      aside,
+      section {
+        padding: 20px;
+        overflow-y: auto;
+        background: var(--panel);
+        border-right: 1px solid rgba(255, 255, 255, 0.06);
+      }
+
+      aside h2,
+      section h2 {
+        font-size: 1.1rem;
+        margin-bottom: 16px;
+      }
+
+      #sigma-container {
+        position: relative;
+        background: radial-gradient(circle at center, #1b1f2b, #090b12);
+      }
+
+      #sigma-canvas {
+        width: 100%;
+        height: 100%;
+      }
+
+      .control-group {
+        margin-bottom: 20px;
+      }
+
+      .control-group label {
+        display: block;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
+
+      .checkbox-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .checkbox-list button {
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 6px;
+        padding: 4px 10px;
+        background: transparent;
+        color: var(--text);
+        cursor: pointer;
+        font-size: 0.8rem;
+        transition: all 0.2s ease;
+      }
+
+      .checkbox-list button.active {
+        background: rgba(92, 124, 250, 0.2);
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+
+      .search-box input {
+        width: 100%;
+        padding: 8px 12px;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(0, 0, 0, 0.35);
+        color: var(--text);
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 12px;
+      }
+
+      .stat-card {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 10px;
+        padding: 12px;
+      }
+
+      .stat-card span {
+        display: block;
+        font-size: 0.75rem;
+        color: var(--muted);
+      }
+
+      .stat-card strong {
+        font-size: 1.2rem;
+      }
+
+      #node-details {
+        background: rgba(0, 0, 0, 0.15);
+        border-radius: 12px;
+        padding: 16px;
+        min-height: 200px;
+        margin-top: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
+      #node-details .label {
+        font-size: 0.75rem;
+        color: var(--muted);
+        letter-spacing: 0.05em;
+      }
+
+      #node-details h3 {
+        font-size: 1rem;
+        margin-bottom: 8px;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        margin-right: 6px;
+        margin-bottom: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        margin-right: 6px;
+        display: inline-block;
+      }
+
+      .status-ok {
+        background: var(--success);
+      }
+
+      .status-fail {
+        background: var(--error);
+      }
+
+      .troubleshooting-list {
+        list-style: none;
+        margin-top: 12px;
+      }
+
+      .troubleshooting-list li {
+        display: flex;
+        align-items: center;
+        font-size: 0.85rem;
+        margin-bottom: 6px;
+        color: var(--muted);
+      }
+
+      #debug-console {
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 10px;
+        padding: 10px;
+        height: 120px;
+        overflow-y: auto;
+        font-size: 0.75rem;
+        color: var(--muted);
+      }
+
+      @media (max-width: 1400px) {
+        body {
+          grid-template-columns: var(--sidebar-width) 1fr;
+          grid-template-rows: calc(60vh) calc(40vh);
+        }
+
+        #sigma-container {
+          grid-column: 1 / -1;
+          grid-row: 2 / 3;
+        }
+
+        section {
+          grid-column: 1 / -1;
+          grid-row: 3 / 4;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <aside>
+      <h2>Belief Graph Controls</h2>
+
+      <div class="control-group">
+        <label>Search Belief</label>
+        <div class="search-box">
+          <input id="search-input" type="text" placeholder="Type to search..." />
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label>Filter by Tier</label>
+        <div class="checkbox-list" id="tier-filter"></div>
+      </div>
+
+      <div class="control-group">
+        <label>Filter by Category</label>
+        <div class="checkbox-list" id="category-filter"></div>
+      </div>
+
+      <div class="control-group">
+        <label>Conviction Range</label>
+        <input type="range" id="conviction-range" min="0" max="1" step="0.05" value="0" />
+        <span id="conviction-label" style="font-size: 0.8rem; color: var(--muted);">
+          Min: 0.00
+        </span>
+      </div>
+
+      <div class="control-group">
+        <label>Actions</label>
+        <button id="reset-view" style="width: 100%; padding: 10px; border-radius: 8px; border: none; background: var(--accent); color: white; cursor: pointer;">
+          Reset View
+        </button>
+      </div>
+
+      <div class="control-group">
+        <label>Troubleshooting</label>
+        <ul class="troubleshooting-list">
+          <li><span class="status-dot" id="status-data"></span>Data Loaded</li>
+          <li><span class="status-dot" id="status-graph"></span>Graph Rendered</li>
+          <li><span class="status-dot" id="status-layout"></span>ForceAtlas2 Layout</li>
+          <li><span class="status-dot" id="status-filters"></span>Filters Applied</li>
+        </ul>
+      </div>
+
+      <div class="control-group">
+        <label>Debug Console</label>
+        <div id="debug-console">
+          <div>Logs will appear here…</div>
+        </div>
+      </div>
+    </aside>
+
+    <main id="sigma-container">
+      <div id="sigma-canvas"></div>
+    </main>
+
+    <section>
+      <h2>Belief Details</h2>
+      <div class="stats-grid" id="summary-stats"></div>
+      <div id="node-details">
+        <div class="label">Select a node to inspect details</div>
+      </div>
+    </section>
+
+    <script src="https://unpkg.com/graphology@0.25.1/dist/graphology.umd.min.js"></script>
+    <script src="https://unpkg.com/graphology-layout-forceatlas2@0.10.1/umd/graphology-layout-forceatlas2.min.js"></script>
+    <script src="https://unpkg.com/sigma@2.4.0/build/sigma.min.js"></script>
+
+    <script>
+      // Embedded graph data (will be replaced during generation)
+      const GRAPH_DATA = __GRAPH_DATA__;
+      const METADATA = {
+        generatedAt: "__GENERATED_AT__",
+        episodeId: "__EPISODE_ID__"
+      };
+
+      const troubleshooting = {
+        data: document.getElementById("status-data"),
+        graph: document.getElementById("status-graph"),
+        layout: document.getElementById("status-layout"),
+        filters: document.getElementById("status-filters")
+      };
+      const debugConsole = document.getElementById("debug-console");
+
+      function setStatus(dot, ok) {
+        dot.className = "status-dot " + (ok ? "status-ok" : "status-fail");
+      }
+
+      function debugLog(message) {
+        const timestamp = new Date().toLocaleTimeString();
+        const entry = document.createElement("div");
+        entry.textContent = `[${timestamp}] ${message}`;
+        if (debugConsole) {
+          debugConsole.prepend(entry);
+        }
+        console.log(message);
+      }
+
+      function initializeDashboard() {
+        if (!GRAPH_DATA || !GRAPH_DATA.nodes || !GRAPH_DATA.nodes.length) {
+          setStatus(troubleshooting.data, false);
+          debugLog("Graph data is empty.");
+          alert("No nodes available in graph data.");
+          return;
+        }
+        setStatus(troubleshooting.data, true);
+        debugLog(`Loaded ${GRAPH_DATA.nodes.length} nodes and ${GRAPH_DATA.edges.length} edges.`);
+
+        const graph = new graphology.Graph({ type: "directed" });
+
+        GRAPH_DATA.nodes.forEach((node) => {
+          const x = typeof node.x === "number" ? node.x : Math.random();
+          const y = typeof node.y === "number" ? node.y : Math.random();
+          graph.addNode(node.id, { ...node, x, y });
+        });
+        GRAPH_DATA.edges.forEach((edge) => {
+          if (graph.hasNode(edge.source) && graph.hasNode(edge.target)) {
+            const edgeKey = edge.id || `${edge.source}->${edge.target}-${Math.random()}`;
+            graph.addEdgeWithKey(edgeKey, edge.source, edge.target, edge);
+          }
+        });
+
+        const container = document.getElementById("sigma-canvas");
+        const renderer = new sigma.Sigma(graph, container, {
+          renderLabels: true,
+          enableEdgeHoverEvents: true
+        });
+        setStatus(troubleshooting.graph, true);
+        debugLog("Sigma renderer initialized.");
+
+        // ForceAtlas2 layout (if library is available)
+        if (typeof graphologyLayoutForceAtlas2 !== "undefined") {
+          try {
+            const settings = graphologyLayoutForceAtlas2.inferSettings(graph);
+            graphologyLayoutForceAtlas2.assign(graph, { iterations: 200, settings });
+            renderer.refresh();
+            setStatus(troubleshooting.layout, true);
+            debugLog("ForceAtlas2 layout completed.");
+          } catch (err) {
+            console.error("ForceAtlas2 error:", err);
+            setStatus(troubleshooting.layout, false);
+            debugLog(`ForceAtlas2 error: ${err.message}`);
+          }
+        } else {
+          setStatus(troubleshooting.layout, true);
+          debugLog("ForceAtlas2 library unavailable; using precomputed positions.");
+        }
+
+        // Render summary stats
+        renderSummaryStats(GRAPH_DATA.stats);
+
+        // Node click handler
+        renderer.on("clickNode", ({ node }) => {
+          const data = graph.getNodeAttributes(node);
+          displayNodeDetails(data);
+        });
+
+        // Search
+        const searchInput = document.getElementById("search-input");
+        searchInput.addEventListener("input", (event) => {
+          const query = event.target.value.toLowerCase();
+          let focusNode = null;
+          graph.forEachNode((node, attrs) => {
+            const match = attrs.label.toLowerCase().includes(query);
+            if (!focusNode && match) focusNode = node;
+          });
+          if (focusNode) {
+            renderer.getCamera().animate(graph.getNodeAttributes(focusNode), {
+              duration: 600
+            });
+          }
+        });
+
+        // Filters
+        setupFilters(graph, renderer);
+        setStatus(troubleshooting.filters, true);
+        debugLog("Filters initialized.");
+
+        document.getElementById("reset-view").addEventListener("click", () => {
+          renderer.getCamera().animate({ x: 0, y: 0, ratio: 1 }, { duration: 600 });
+          renderer.setNodeReducer(null);
+        });
+      }
+
+      function renderSummaryStats(stats = {}) {
+        const container = document.getElementById("summary-stats");
+        container.innerHTML = "";
+        const entries = [
+          { label: "Nodes", value: stats.total_nodes },
+          { label: "Edges", value: stats.total_edges },
+          { label: "Generated", value: new Date(METADATA.generatedAt).toLocaleString() }
+        ];
+        entries.forEach((entry) => {
+          const card = document.createElement("div");
+          card.className = "stat-card";
+          card.innerHTML = `<span>${entry.label}</span><strong>${entry.value ?? "—"}</strong>`;
+          container.appendChild(card);
+        });
+      }
+
+      function displayNodeDetails(attrs) {
+        const panel = document.getElementById("node-details");
+        panel.innerHTML = `
+          <div class="label">Belief</div>
+          <h3>${attrs.label}</h3>
+          <p style="margin-bottom: 10px; color: var(--muted);">ID: ${attrs.id}</p>
+          <div>
+            <span class="pill">Tier: ${attrs.tier || "?"}</span>
+            <span class="pill">Category: ${attrs.category || "?"}</span>
+            <span class="pill">Speaker: ${attrs.speaker || "?"}</span>
+          </div>
+          <div style="margin-top: 10px;">
+            <strong>Conviction:</strong> ${attrs.conviction?.toFixed(2) ?? "—"}<br/>
+            <strong>Stability:</strong> ${attrs.stability?.toFixed(2) ?? "—"}<br/>
+            <strong>Importance:</strong> ${attrs.importance ?? "—"}<br/>
+            <strong>Certainty:</strong> ${attrs.certainty || "—"}
+          </div>
+        `;
+      }
+
+      function setupFilters(graph, renderer) {
+        const tierContainer = document.getElementById("tier-filter");
+        const categoryContainer = document.getElementById("category-filter");
+        const convictionRange = document.getElementById("conviction-range");
+        const convictionLabel = document.getElementById("conviction-label");
+
+        const tiers = new Set();
+        const categories = new Set();
+        graph.forEachNode((node, attrs) => {
+          if (attrs.tier) tiers.add(attrs.tier);
+          if (attrs.category) categories.add(attrs.category);
+        });
+
+        const activeFilters = {
+          tiers: new Set(),
+          categories: new Set(),
+          convictionMin: 0
+        };
+
+        const createFilterButton = (label, collection, activeSet) => {
+          const btn = document.createElement("button");
+          btn.textContent = label;
+          btn.addEventListener("click", () => {
+            if (activeSet.has(label)) {
+              activeSet.delete(label);
+              btn.classList.remove("active");
+            } else {
+              activeSet.add(label);
+              btn.classList.add("active");
+            }
+            applyFilters();
+          });
+          collection.appendChild(btn);
+        };
+
+        Array.from(tiers).sort().forEach((tier) => {
+          createFilterButton(tier, tierContainer, activeFilters.tiers);
+        });
+
+        Array.from(categories).sort().forEach((category) => {
+          createFilterButton(category, categoryContainer, activeFilters.categories);
+        });
+
+        convictionRange.addEventListener("input", (event) => {
+          const value = parseFloat(event.target.value);
+          convictionLabel.textContent = `Min: ${value.toFixed(2)}`;
+          activeFilters.convictionMin = value;
+          applyFilters();
+        });
+
+        function applyFilters() {
+          renderer.setNodeReducer((node, data) => {
+            const hideTier =
+              activeFilters.tiers.size &&
+              !activeFilters.tiers.has(data.tier);
+            const hideCategory =
+              activeFilters.categories.size &&
+              !activeFilters.categories.has(data.category);
+            const hideConviction = data.conviction < activeFilters.convictionMin;
+            return {
+              ...data,
+              hidden: hideTier || hideCategory || hideConviction
+            };
+          });
+          renderer.refresh();
+        }
+      }
+
+      window.addEventListener("DOMContentLoaded", initializeDashboard);
+    </script>
+  </body>
+</html>
+

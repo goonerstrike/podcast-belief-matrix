@@ -107,6 +107,7 @@ class BeliefExtractor:
                 'importance': belief.importance,
                 'tier_name': belief.tier_name,
                 'category': belief.category,
+                'sub_domain': belief.sub_domain,
                 'conviction_score': belief.conviction_score,
                 'stability_score': belief.stability_score,
                 'parent_hint': belief.parent_hint or '',
@@ -118,7 +119,7 @@ class BeliefExtractor:
         columns = [
             'belief_id', 'speaker_id', 'episode_id', 'timestamp',
             'statement_text', 'atomic_belief', 'certainty', 
-            'importance', 'tier_name', 'category',
+            'importance', 'tier_name', 'category', 'sub_domain',
             'conviction_score', 'stability_score', 'parent_hint',
             'parent_belief_id'
         ]

@@ -34,6 +34,8 @@ def truncate_text(text, max_length=60):
               help='Filter by tier name')
 @click.option('--category', type=str, default=None,
               help='Filter by category')
+@click.option('--sub-domain', 'sub_domain', type=str, default=None,
+              help='Filter by sub-domain slug (case-insensitive)')
 @click.option('--min-conviction', type=float, default=0.0,
               help='Minimum conviction score (0.0-1.0)')
 @click.option('--export', type=click.Path(), default=None,
@@ -42,8 +44,8 @@ def truncate_text(text, max_length=60):
               type=click.Choice(['table', 'markdown', 'csv', 'json']),
               default='table',
               help='Output format')
-def main(beliefs_file, sort, top, speaker, tier, category, min_conviction, 
-         export, output_format):
+def main(beliefs_file, sort, top, speaker, tier, category, sub_domain,
+         min_conviction, export, output_format):
     """View belief rankings with weights."""
     
     # Load beliefs
@@ -76,6 +78,14 @@ def main(beliefs_file, sort, top, speaker, tier, category, min_conviction,
         filtered_df = filtered_df[filtered_df['category'] == category]
         print(f"🔍 Filtered by category: {category}")
     
+    if sub_domain:
+        if 'sub_domain' not in filtered_df.columns:
+            filtered_df['sub_domain'] = 'general'
+        filtered_df = filtered_df[
+            filtered_df['sub_domain'].str.contains(sub_domain, case=False, na=False)
+        ]
+        print(f"🔍 Filtered by sub-domain: {sub_domain}")
+    
     if min_conviction > 0:
         filtered_df = filtered_df[filtered_df['conviction_score'] >= min_conviction]
         print(f"🔍 Filtered by conviction >= {min_conviction}")
@@ -105,14 +115,16 @@ def main(beliefs_file, sort, top, speaker, tier, category, min_conviction,
     
     # Prepare display data
     display_df = filtered_df.copy()
+    if 'sub_domain' not in display_df.columns:
+        display_df['sub_domain'] = 'general'
     display_df['statement'] = display_df['statement_text'].apply(lambda x: truncate_text(x, 50))
     display_df['conv'] = display_df['conviction_score'].apply(lambda x: f"{x:.2f}")
     display_df['stab'] = display_df['stability_score'].apply(lambda x: f"{x:.2f}")
     display_df['rank'] = display_df['importance']
     
     # Select columns for display
-    display_cols = ['belief_id', 'speaker_id', 'rank', 'tier_name', 'category', 
-                   'conv', 'stab', 'statement']
+    display_cols = ['belief_id', 'speaker_id', 'rank', 'tier_name', 'category',
+                    'sub_domain', 'conv', 'stab', 'statement']
     
     # Output based on format
     if output_format == 'table':
@@ -120,7 +132,7 @@ def main(beliefs_file, sort, top, speaker, tier, category, min_conviction,
         print()
         print(tabulate(
             display_df[display_cols],
-            headers=['ID', 'Speaker', 'Rank', 'Tier', 'Category', 'Conv', 'Stab', 'Statement'],
+            headers=['ID', 'Speaker', 'Rank', 'Tier', 'Category', 'Sub-domain', 'Conv', 'Stab', 'Statement'],
             tablefmt='fancy_grid',
             showindex=False
         ))
@@ -128,7 +140,7 @@ def main(beliefs_file, sort, top, speaker, tier, category, min_conviction,
         print(f"## Rankings (sorted by {sort_label})\n")
         print(tabulate(
             display_df[display_cols],
-            headers=['ID', 'Speaker', 'Rank', 'Tier', 'Category', 'Conv', 'Stab', 'Statement'],
+            headers=['ID', 'Speaker', 'Rank', 'Tier', 'Category', 'Sub-domain', 'Conv', 'Stab', 'Statement'],
             tablefmt='github',
             showindex=False
         ))

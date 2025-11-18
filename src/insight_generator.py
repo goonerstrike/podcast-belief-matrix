@@ -114,6 +114,7 @@ Combined conviction and stability suggests a {self._interpret_strength(stats.get
         """Generate distribution insights."""
         beliefs_per_tier = stats.get('beliefs_per_tier', {})
         beliefs_per_category = stats.get('beliefs_per_category', {})
+        beliefs_per_sub_domain = stats.get('beliefs_per_sub_domain', {})
         
         # Find dominant tier
         dominant_tier = max(beliefs_per_tier, key=beliefs_per_tier.get) if beliefs_per_tier else "Unknown"
@@ -135,6 +136,22 @@ Combined conviction and stability suggests a {self._interpret_strength(stats.get
             for cat, count in sorted(beliefs_per_category.items(), key=lambda x: x[1], reverse=True)[:5]
         ])
         
+        sub_domain_section = ""
+        if beliefs_per_sub_domain:
+            dominant_sub = max(beliefs_per_sub_domain, key=beliefs_per_sub_domain.get)
+            dominant_sub_count = beliefs_per_sub_domain.get(dominant_sub, 0)
+            dominant_sub_pct = (dominant_sub_count / stats.get('total_beliefs', 1)) * 100
+            sub_distribution = "\n".join([
+                f"- **{sub}**: {count} beliefs ({count/stats.get('total_beliefs',1)*100:.1f}%)"
+                for sub, count in sorted(beliefs_per_sub_domain.items(), key=lambda x: x[1], reverse=True)[:5]
+            ])
+            sub_domain_section = f"""
+### By Sub-domain
+The most specific focus is **{dominant_sub}** ({dominant_sub_pct:.1f}% of beliefs).
+
+{sub_distribution}
+"""
+
         return f"""## 📊 Belief Distribution
 
 ### By Tier
@@ -150,6 +167,8 @@ The dominant domain is **{dominant_category}** ({dominant_category_pct:.1f}% of 
 {category_distribution}
 
 **Interpretation**: {self._interpret_category_focus(dominant_category, dominant_category_pct)}
+
+{sub_domain_section}
 """
     
     def _generate_strength_insights(self, df: pd.DataFrame) -> str:
@@ -229,10 +248,18 @@ Detected conflicting beliefs in {dissonance_domains} domains.
         dominant_domain = patterns.get('dominant_domain', '')
         dominant_pct = patterns.get('dominant_domain_percentage', 0)
         if dominant_domain:
-            sections.append(f"""### 🎯 Domain Focus
-{dominant_pct:.1f}% of beliefs are about **{dominant_domain}**.
+            text = f"""### 🎯 Domain Focus
+{dominant_pct:.1f}% of beliefs are about **{dominant_domain}**."""
+            dominant_sub = patterns.get('dominant_sub_domain')
+            dominant_sub_pct = patterns.get('dominant_sub_domain_percentage')
+            if dominant_sub:
+                text += f"""
 
-**Interpretation**: This is the primary area of intellectual/ideological focus.""")
+🔸 Within that, **{dominant_sub}** accounts for {dominant_sub_pct:.1f}% of all beliefs."""
+            text += """
+
+**Interpretation**: This is the primary area of intellectual/ideological focus."""
+            sections.append(text)
         
         return f"""## 🔍 Patterns & Insights
 

@@ -54,6 +54,10 @@ class BeliefAnalyzer:
             DataFrame with additional metric columns
         """
         result = df.copy()
+        if 'sub_domain' not in result.columns:
+            result['sub_domain'] = 'general'
+        else:
+            result['sub_domain'] = result['sub_domain'].fillna('general')
         
         # Belief Strength = conviction × stability
         result['belief_strength'] = result['conviction_score'] * result['stability_score']
@@ -89,6 +93,8 @@ class BeliefAnalyzer:
         Returns:
             Dictionary of statistics
         """
+        has_sub_domains = 'sub_domain' in df.columns and df['sub_domain'].notna().any()
+
         stats = {
             'total_beliefs': len(df),
             'avg_conviction': float(df['conviction_score'].mean()),
@@ -104,6 +110,14 @@ class BeliefAnalyzer:
             # By category
             'beliefs_per_category': df['category'].value_counts().to_dict(),
             'avg_conviction_per_category': df.groupby('category')['conviction_score'].mean().to_dict(),
+            'beliefs_per_sub_domain': (
+                df['sub_domain'].fillna('general').value_counts().to_dict()
+                if has_sub_domains else {}
+            ),
+            'avg_conviction_per_sub_domain': (
+                df[df['sub_domain'].notna()].groupby('sub_domain')['conviction_score'].mean().to_dict()
+                if has_sub_domains else {}
+            ),
             
             # By speaker
             'unique_speakers': int(df['speaker_id'].nunique()),
@@ -178,6 +192,11 @@ class BeliefAnalyzer:
             dominant_percentage = (df['category'].value_counts().max() / len(df)) * 100
             patterns['dominant_domain'] = dominant_category
             patterns['dominant_domain_percentage'] = float(dominant_percentage)
+            if 'sub_domain' in df.columns:
+                sub_counts = df['sub_domain'].value_counts()
+                if not sub_counts.empty:
+                    patterns['dominant_sub_domain'] = sub_counts.idxmax()
+                    patterns['dominant_sub_domain_percentage'] = float((sub_counts.max() / len(df)) * 100)
         
         # Rigidity assessment
         high_rigidity = df[df['rigidity_score'] > 7]
@@ -216,6 +235,11 @@ class BeliefAnalyzer:
                 'avg_rigidity': speaker_df['rigidity_score'].mean(),
                 'core_beliefs': len(speaker_df[speaker_df['importance'] <= 3]),
                 'dominant_category': speaker_df['category'].value_counts().idxmax(),
+                'dominant_sub_domain': (
+                    speaker_df['sub_domain'].value_counts().idxmax()
+                    if 'sub_domain' in speaker_df.columns and speaker_df['sub_domain'].notna().any()
+                    else None
+                ),
                 'tribal_markers': len(speaker_df[speaker_df.get('defines_outgroup', False) == True])
             }
             

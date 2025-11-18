@@ -1,11 +1,15 @@
 """
-Dashboard HTML generator with embedded data.
-Creates standalone dashboard HTML files with CSV data pre-loaded.
+Dashboard HTML generator utilities.
+Supports both the legacy analytics dashboard and the new ForceAtlas2 network view.
 """
-import pandas as pd
-from pathlib import Path
+import json
 from datetime import datetime
+from pathlib import Path
+from typing import Dict, Any
 
+import pandas as pd
+
+FA2_TEMPLATE_PATH = Path(__file__).parent.parent / 'templates' / 'forceatlas2_dashboard.html'
 
 def generate_dashboard_html(csv_path: str, output_html_path: str, episode_id: str = None) -> str:
     """
@@ -23,7 +27,6 @@ def generate_dashboard_html(csv_path: str, output_html_path: str, episode_id: st
     df = pd.read_csv(csv_path)
     
     # Convert to JSON for embedding with proper escaping
-    import json
     records = df.to_dict(orient='records')
     beliefs_json = json.dumps(records, indent=2, ensure_ascii=False)
     
@@ -153,6 +156,40 @@ def generate_dashboard_html(csv_path: str, output_html_path: str, episode_id: st
     
     with open(output_path, 'w') as f:
         f.write(modified_html)
+    
+    return str(output_path.absolute())
+
+
+def generate_forceatlas_dashboard(graph_data: Dict[str, Any],
+                                  output_html_path: str,
+                                  episode_id: str = None) -> str:
+    """
+    Generate the ForceAtlas2 dashboard with embedded graph data.
+    
+    Args:
+        graph_data: Dict containing nodes, edges, stats
+        output_html_path: Where to save the dashboard
+        episode_id: Optional identifier for labeling
+        
+    Returns:
+        Absolute path to generated HTML file
+    """
+    if not FA2_TEMPLATE_PATH.exists():
+        raise FileNotFoundError(f"ForceAtlas2 template not found at {FA2_TEMPLATE_PATH}")
+    
+    template_html = FA2_TEMPLATE_PATH.read_text(encoding='utf-8')
+    timestamp = datetime.now().isoformat()
+    
+    html = (
+        template_html
+        .replace('__GRAPH_DATA__', json.dumps(graph_data, ensure_ascii=False))
+        .replace('__GENERATED_AT__', timestamp)
+        .replace('__EPISODE_ID__', episode_id or 'N/A')
+    )
+    
+    output_path = Path(output_html_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(html, encoding='utf-8')
     
     return str(output_path.absolute())
 

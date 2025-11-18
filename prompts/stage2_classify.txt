@@ -49,6 +49,9 @@ Based on the above, which tier does this belief belong to?
 === CATEGORIZATION (Q29-31) ===
 29. What is the single best-fitting category label for this belief?
     (Choose ONE: epistemic, moral, political, economic, spiritual, social, tech, health, bitcoin/finance, other)
+29b. Provide a short SUB-DOMAIN or topic label (1-4 words) that specifies the concrete focus inside that category
+     (e.g., "self-custody", "archaeology methods", "AI safety"). Use lowercase slug-style phrasing.
+     If no clear sub-domain exists, return "general".
 
 30. In one short phrase, what higher-level belief or axiom does this belief most likely instantiate or rely on?
     (This is the "parent_hint" - leave empty if this seems foundational)
@@ -73,6 +76,7 @@ RESPOND IN THIS EXACT JSON FORMAT:
   "conviction_score": 0.0-1.0,
   "stability_score": 0.0-1.0,
   "category": "epistemic|moral|political|economic|spiritual|social|tech|health|bitcoin/finance|other",
+  "sub_domain": "string (e.g., self-custody, archaeology_methods, policy_general)",
   "parent_hint": "string or empty",
   "defines_outgroup": true/false
 }}

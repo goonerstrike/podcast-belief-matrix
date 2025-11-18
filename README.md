@@ -256,6 +256,7 @@ flowchart TD
 | `importance` | Tier ranking (1-10) | 2 |
 | `tier_name` | Belief tier | Worldview Pillars |
 | `category` | Domain category | moral |
+| `sub_domain` | Specific topic slug inside that category | self_custody |
 | `conviction_score` | Speaker conviction (0-1) | 0.96 |
 | `stability_score` | Long-term stability (0-1) | 0.92 |
 | `parent_hint` | Higher-level belief | "Individuals are solely responsible..." |
@@ -338,10 +339,13 @@ python run_multilevel_extraction.py --transcript input.txt --no-linking
 python run_multilevel_extraction.py --transcript input.txt --dedup-threshold 0.9
 ```
 
-**Outputs**:
-- `beliefs_multilevel_*.csv` - Raw beliefs from all levels
-- `beliefs_deduplicated_*.csv` - Merged beliefs with reinforcement scores
-- `beliefs_linked_*.csv` - Final output with parent-child relationships
+**Outputs:** (per run, under `output/<episode_id>/`)
+- `beliefs_multilevel_<episode_id>.csv` – Raw beliefs from all levels
+- `beliefs_deduplicated_<episode_id>.csv` – Deduplicated beliefs with reinforcement stats
+- `beliefs_linked_<episode_id>.csv` – Final belief matrix (with parent links, metrics)
+- `belief_mapping_<episode_id>.csv` – Mapping of duplicate groups (if dedup enabled)
+
+> Each belief row now carries both a broad `category` (e.g., epistemic) and a granular `sub_domain` slug (e.g., `self_custody`) so you can filter or search with much finer resolution.
 
 #### Belief Analysis & Insights (NEW!)
 
@@ -367,14 +371,15 @@ python analyze_beliefs.py output/beliefs.csv --export-metrics --output-dir resul
 - `belief_graph_*.json` - Graph structure for visualization
 - `belief_graph_*.graphml` - For Gephi/Cytoscape analysis
 
-#### Interactive Dashboard (NEW!)
+#### W&B Analytics (Recommended)
 
-Open `dashboard_analytics.html` in your browser and drag/drop any beliefs CSV to explore:
-- Real-time metric calculations
-- Interactive Plotly visualizations
-- Keystone belief identification
-- Vulnerability detection
-- Distribution analysis
+All runs automatically log to Weights & Biases (W&B), including:
+- Summary metrics (conviction, stability, belief counts)
+- Distribution tables per tier/category/speaker
+- Correlation and outlier analysis
+- Graph metrics (centrality, communities, keystone beliefs)
+
+> ⚠️ Local dashboards (the legacy Plotly UI and the ForceAtlas network view) are temporarily disabled while we rebuild the analysis workflow. Use the W&B project to inspect results, or open the exported CSVs directly.
 
 ### Viewing Rankings with Weights
 
@@ -533,8 +538,9 @@ podcast-belief-extraction/
 │   └── wandb_logger.py             # W&B integration
 ├── tests/
 │   └── test_sample.txt             # 720-word test transcript
-├── output/                          # Generated belief matrices
-│   └── analysis/                    # Analytics outputs (NEW!)
+├── output/
+│   ├── <episode_id>/                # Per-run exports (CSV + logs)
+│   └── analysis/                    # (Optional) derived analytics
 ├── run_multilevel_extraction.py    # Multi-level CLI script (use --levels 1 for single-level)
 ├── analyze_beliefs.py              # Analytics CLI script (NEW!)
 ├── view_rankings.py                # View formatted rankings with weights
@@ -600,7 +606,7 @@ For **each utterance**, the system runs a two-stage classification:
     - **Claim Type (Q14-15)**: Testable/concrete vs casual/exploratory
     - **Tier Classification (Q16-26)**: Which of 10 hierarchical tiers best fits
     - **Scoring (Q27-28)**: Conviction score (0-1) and stability score (0-1)
-    - **Categorization (Q29-31)**: Domain category, parent belief hint, outgroup definition
+    - **Categorization (Q29-31)**: Domain category, sub-domain slug, parent belief hint, outgroup definition
 
 13. **Call OpenAI API (Stage 2)** - Sends comprehensive prompt requesting detailed analysis
     ```json
@@ -610,6 +616,7 @@ For **each utterance**, the system runs a two-stage classification:
       "conviction_score": 0.7,
       "stability_score": 0.6,
       "category": "political",
+      "sub_domain": "institutional_trust",
       "parent_hint": "Moral responsibility of influential figures",
       ...
     }
@@ -628,7 +635,7 @@ For **each utterance**, the system runs a two-stage classification:
 18. **Convert to DataFrame** - Transforms belief objects into pandas DataFrame with standardized 12-column schema:
     ```
     belief_id | speaker_id | episode_id | timestamp | statement_text | 
-    importance | tier_name | category | conviction_score | stability_score | 
+    importance | tier_name | category | sub_domain | conviction_score | stability_score | 
     parent_hint | parent_belief_id
     ```
 
@@ -723,13 +730,14 @@ SPEAKER_B | 00:12:04 | "I think Elon is genuine and does actual good work..."
   "conviction_score": 0.7,
   "stability_score": 0.6,
   "category": "political",
+  "sub_domain": "institutional_trust",
   "parent_hint": "Belief in moral responsibility of influential figures"
 }
 ```
 
 **Final Record:**
 ```csv
-b_0001,SPEAKER_B,e_jre,00:12:04,"I think Elon is genuine...",6,Stable Domain Beliefs,political,0.7,0.6,"Belief in moral responsibility",NULL
+b_0001,SPEAKER_B,e_jre,00:12:04,"I think Elon is genuine...",6,Stable Domain Beliefs,political,institutional_trust,0.7,0.6,"Belief in moral responsibility",NULL
 ```
 
 ## 🎯 Use Cases
@@ -752,9 +760,9 @@ b_0001,SPEAKER_B,e_jre,00:12:04,"I think Elon is genuine...",6,Stable Domain Bel
 ## 📝 Example Output
 
 ```csv
-belief_id,speaker_id,episode_id,timestamp,statement_text,importance,tier_name,category,conviction_score,stability_score,parent_hint,parent_belief_id
-b_0001,SPEAKER_B,e_test_001,00:02:28,"He's definitely in a different place politically",9,Situational Opinions,political,0.65,0.40,"Political positions evolve over time",NULL
-b_0002,SPEAKER_C,e_test_001,00:03:01,"This is such a weird era for America",9,Situational Opinions,social,0.70,0.50,"Current times are unprecedented",NULL
+belief_id,speaker_id,episode_id,timestamp,statement_text,importance,tier_name,category,sub_domain,conviction_score,stability_score,parent_hint,parent_belief_id
+b_0001,SPEAKER_B,e_test_001,00:02:28,"He's definitely in a different place politically",9,Situational Opinions,political,political_identity,0.65,0.40,"Political positions evolve over time",NULL
+b_0002,SPEAKER_C,e_test_001,00:03:01,"This is such a weird era for America",9,Situational Opinions,social,culture_general,0.70,0.50,"Current times are unprecedented",NULL
 ```
 
 ## 🐛 Troubleshooting
