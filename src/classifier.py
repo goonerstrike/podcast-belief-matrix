@@ -23,6 +23,10 @@ class BeliefClassification:
     is_belief: bool
     filter_confidence: float
     
+    # Atomic belief extraction (NEW)
+    atomic_belief: Optional[str] = None
+    certainty: Optional[str] = None  # "binary" or "hedged"
+    
     # Stage 2 results (only if is_belief=True)
     tier_name: Optional[str] = None
     importance: Optional[int] = None
@@ -44,6 +48,8 @@ class BeliefClassification:
             'statement_text': self.statement_text,
             'is_belief': self.is_belief,
             'filter_confidence': self.filter_confidence,
+            'atomic_belief': self.atomic_belief,
+            'certainty': self.certainty,
             'tier_name': self.tier_name,
             'importance': self.importance,
             'conviction_score': self.conviction_score,
@@ -78,6 +84,7 @@ class BeliefClassifier:
         # Load prompts
         self.stage1_prompt = self._load_prompt("stage1_filter.txt")
         self.stage2_prompt = self._load_prompt("stage2_classify.txt")
+        self.atomic_extraction_prompt = self._load_prompt("atomic_belief_extraction.txt")
         
         # Cost tracking
         self.total_tokens = 0
@@ -172,6 +179,34 @@ class BeliefClassifier:
                 "defines_outgroup": False
             }
     
+    def extract_atomic_beliefs(self, speaker_id: str, timestamp: str,
+                               statement_text: str) -> List[Dict]:
+        """
+        Extract atomic beliefs from a statement.
+        
+        Args:
+            speaker_id: Speaker identifier
+            timestamp: Time in transcript
+            statement_text: The statement to analyze
+            
+        Returns:
+            List of dicts with 'belief' and 'certainty' keys
+        """
+        prompt = self.atomic_extraction_prompt.format(
+            speaker_id=speaker_id,
+            timestamp=timestamp,
+            statement_text=statement_text
+        )
+        
+        response, _, _ = self._call_llm(prompt)
+        
+        try:
+            result = json.loads(response)
+            return result.get("atomic_beliefs", [])
+        except json.JSONDecodeError:
+            # Fallback if JSON parsing fails
+            return []
+    
     def classify(self, speaker_id: str, timestamp: str,
                 statement_text: str) -> BeliefClassification:
         """
@@ -192,7 +227,7 @@ class BeliefClassifier:
         confidence = stage1.get("confidence", 0.0)
         
         if not is_belief:
-            # Not a belief, skip stage 2
+            # Not a belief, skip stage 2 and atomic extraction
             return BeliefClassification(
                 speaker_id=speaker_id,
                 timestamp=timestamp,
@@ -201,6 +236,16 @@ class BeliefClassifier:
                 filter_confidence=confidence,
                 stage1_responses=stage1
             )
+        
+        # Extract atomic beliefs
+        atomic_beliefs = self.extract_atomic_beliefs(speaker_id, timestamp, statement_text)
+        
+        # Use first atomic belief if available, otherwise use original statement
+        atomic_belief = None
+        certainty = None
+        if atomic_beliefs and len(atomic_beliefs) > 0:
+            atomic_belief = atomic_beliefs[0].get("belief")
+            certainty = atomic_beliefs[0].get("certainty")
         
         # Stage 2: Classify
         stage2 = self.stage2_classify(speaker_id, timestamp, statement_text)
@@ -211,6 +256,8 @@ class BeliefClassifier:
             statement_text=statement_text,
             is_belief=True,
             filter_confidence=confidence,
+            atomic_belief=atomic_belief,
+            certainty=certainty,
             tier_name=stage2.get("tier_name"),
             importance=stage2.get("importance"),
             conviction_score=stage2.get("conviction_score"),

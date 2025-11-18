@@ -90,8 +90,8 @@ class BeliefExtractor:
         
         Schema:
         belief_id, speaker_id, episode_id, timestamp, statement_text,
-        importance, tier_name, category, conviction_score, stability_score,
-        parent_hint, parent_belief_id
+        atomic_belief, certainty, importance, tier_name, category, 
+        conviction_score, stability_score, parent_hint, parent_belief_id
         """
         records = []
         
@@ -102,6 +102,8 @@ class BeliefExtractor:
                 'episode_id': episode_id or belief.statement_text[:20],
                 'timestamp': belief.timestamp,
                 'statement_text': belief.statement_text,
+                'atomic_belief': belief.atomic_belief,
+                'certainty': belief.certainty,
                 'importance': belief.importance,
                 'tier_name': belief.tier_name,
                 'category': belief.category,
@@ -115,7 +117,8 @@ class BeliefExtractor:
         # Ensure correct column order
         columns = [
             'belief_id', 'speaker_id', 'episode_id', 'timestamp',
-            'statement_text', 'importance', 'tier_name', 'category',
+            'statement_text', 'atomic_belief', 'certainty', 
+            'importance', 'tier_name', 'category',
             'conviction_score', 'stability_score', 'parent_hint',
             'parent_belief_id'
         ]

@@ -1,0 +1,54 @@
+Extract the speaker's beliefs from the statement below.
+
+Your task is to identify atomic beliefs - clean, standalone, declarative statements that represent what the speaker believes or claims.
+
+STATEMENT TO ANALYZE:
+Speaker: {speaker_id}
+Timestamp: {timestamp}
+Text: "{statement_text}"
+
+RULES:
+1. Extract ALL distinct beliefs/claims from the statement
+2. Each belief must be a clear, standalone, atomic statement
+3. Remove quotes, questions, narration, or fluff
+4. Do NOT add new meaning or interpretation
+5. Preserve the speaker's intent and framing
+6. If no beliefs are present, return empty array
+
+CERTAINTY CLASSIFICATION:
+- "binary": Absolute statement with no hedging ("Bitcoin is...", "X will happen")
+- "hedged": Contains uncertainty markers ("might", "could", "probably", "I think")
+
+RESPOND IN THIS EXACT JSON FORMAT:
+{{
+  "atomic_beliefs": [
+    {{
+      "belief": "Clear standalone statement",
+      "certainty": "binary" or "hedged"
+    }}
+  ]
+}}
+
+EXAMPLES:
+
+Input: "I think Bitcoin is going to be huge and it might replace the dollar someday."
+Output: {{
+  "atomic_beliefs": [
+    {{"belief": "Bitcoin is going to be huge", "certainty": "hedged"}},
+    {{"belief": "Bitcoin might replace the dollar", "certainty": "hedged"}}
+  ]
+}}
+
+Input: "Bitcoin follows a power law, not exponential growth."
+Output: {{
+  "atomic_beliefs": [
+    {{"belief": "Bitcoin follows a power law", "certainty": "binary"}},
+    {{"belief": "Bitcoin does not follow exponential growth", "certainty": "binary"}}
+  ]
+}}
+
+Input: "What time is the conference?"
+Output: {{
+  "atomic_beliefs": []
+}}
+

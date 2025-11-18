@@ -1,0 +1,21 @@
+From this utterance, identify the exact word-for-word phrase (3-15 words) that contains the core belief statement.
+
+FULL UTTERANCE:
+{statement_text}
+
+Your task: Extract the EXACT substring from the utterance - word-for-word, no paraphrasing.
+
+Requirements:
+- Must be 3-15 words
+- Must be a continuous phrase from the original text (exact substring)
+- Should capture the core belief in the clearest, most quotable form
+- Do not rephrase or paraphrase - use the speaker's exact words
+
+RESPOND IN JSON:
+{{
+  "belief_direct_quote": "exact word-for-word substring here",
+  "start_char_index": 0,
+  "end_char_index": 0
+}}
+
+
