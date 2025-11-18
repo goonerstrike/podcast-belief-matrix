@@ -35,31 +35,47 @@ flowchart TD
     Questions, ads, greetings"]
     
     F -->|"✅ Yes - 30% pass filter"| H["⚡ Extract Atomic Beliefs
-    NEW: Clean standalone statements
+    Extract ALL distinct beliefs as clean statements
+    Remove quotes, questions, fluff
+    Preserve speaker's intent
     📜 classifier.py::extract_atomic_beliefs()"]
     
-    H --> I["🎯 Get Statement + Certainty
-    binary or hedged classification
+    H --> I["🎯 Classify Certainty
+    binary: absolute statements
+    hedged: contains uncertainty markers
     📜 prompts/atomic_belief_extraction.txt"]
     
     I --> J["🧠 Stage 2: Full Classification
-    26+ analysis questions via LLM
+    Q5-7: Conviction indicators
+    Q8-13: Belief type classification
+    Q14-15: Claim type
+    Q16-26: Tier determination
+    Q27-28: Scoring
+    Q29-31: Categorization
     📜 classifier.py::stage2_classify()"]
     
-    J --> K["🏆 Determine Primary Tier
-    Which of 10 tiers fits best
+    J --> K["🏆 Determine Primary Tier Q16-26
+    Core Axiom? Worldview Pillar?
+    Identity Value? Meta-Principle?
+    Cross-Domain Rule? Domain Belief?
+    Strategy? Claim? Opinion? Joke?
     📜 prompts/stage2_classify.txt"]
     J --> L["📊 Generate 10 Abstractions
-    Core Axioms → Loose Takes
+    Rewrite belief at each tier level
+    Tier 1 Core Axioms → Tier 10 Loose Takes
     📜 prompts/tier_abstraction.txt"]
-    J --> M["💪 Conviction & Stability
-    How strong + how stable 0-1
+    J --> M["💪 Conviction & Stability Q27-28
+    Q27: How strong is conviction? 0-1
+    Q28: How stable/long-term? 0-1
     📜 prompts/stage2_classify.txt"]
     J --> N["🌐 Score 4 Domains
-    Sci/tech, phil/religious, financial, political
+    Scientific/tech, philosophical/religious
+    Financial, political 0-1 each
     📜 prompts/stage2_classify.txt"]
-    J --> O["🏷️ Assign Category
-    epistemic, moral, political, etc.
+    J --> O["🏷️ Assign Category Q29-31
+    Q29: epistemic, moral, political, etc.
+    Q30: Parent hint higher-level belief
+    Q31: Defines outgroup? yes/no
     📜 prompts/stage2_classify.txt"]
     
     K --> P["📦 Compile Belief Record
@@ -142,14 +158,46 @@ Extracts clean, standalone belief statements from each utterance:
 
 ### Stage 2: Full Classification
 
-Comprehensive analysis generating:
-- **Primary tier** (1-10): Best-fit tier from Core Axioms → Loose Takes
-- **10 tier abstractions**: Reformulated at each abstraction level
-- **Tier fit scores** (1-10): How well the belief fits each tier
-- **Conviction score** (0-1): How strongly speaker holds this belief
-- **Stability score** (0-1): How long-term/stable the belief is
-- **4 domain scores** (0-1): Scientific/tech, philosophical/religious, financial, political
-- **Category**: epistemic, moral, political, economic, etc.
+Comprehensive 27-question analysis (Q5-Q31):
+
+**Conviction Indicators (Q5-7):**
+- Q5: Strong/absolute commitment wording? ("always/never/must")
+- Q6: Speaker repeats or consistently relies on this?
+- Q7: Speaker defends/justifies against alternatives?
+
+**Belief Type (Q8-13):**
+- Q8: About fundamental nature of reality/existence?
+- Q9: About truth/knowledge formation, trust, evaluation?
+- Q10: About broad moral principles (right/wrong)?
+- Q11: Cross-domain principle applied in multiple areas?
+- Q12: About large-scale systems/institutions?
+- Q13: Mainly about one specific domain?
+
+**Claim Type (Q14-15):**
+- Q14: Concrete, testable, time-bound claim?
+- Q15: Casual preference, joke, or musing?
+
+**Tier Classification (Q16-26):**
+- Q16: Core Axiom? (foundational, cross-domain, defended)
+- Q17: Worldview Pillar? (big-picture frame)
+- Q18: Identity-Defining Value? ("this is who I am")
+- Q19: Meta-Principle? (rule for updating beliefs)
+- Q20: Cross-Domain Rule/Heuristic?
+- Q21: Stable Domain Belief? (consistent stance in one topic)
+- Q22: Repeated Strategy/Playbook?
+- Q23: Concrete Claim/Prediction?
+- Q24: Situational Opinion? (narrow context)
+- Q25: Loose Take/Joke/Aesthetic?
+- Q26: Single best-fitting tier?
+
+**Scoring (Q27-28):**
+- Q27: Conviction score (0-1): How strongly held?
+- Q28: Stability score (0-1): How long-term/stable?
+
+**Categorization (Q29-31):**
+- Q29: Category (epistemic, moral, political, economic, etc.)
+- Q30: Parent hint (higher-level belief this relies on)
+- Q31: Defines outgroup? (rejects another belief/group)
 
 ## Final Output Schema
 

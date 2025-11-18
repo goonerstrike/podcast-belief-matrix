@@ -28,31 +28,47 @@ flowchart TD
     Questions, ads, greetings"]
     
     F -->|"✅ Yes - 30% pass filter"| H["⚡ Extract Atomic Beliefs
-    NEW: Clean standalone statements
+    Extract ALL distinct beliefs as clean statements
+    Remove quotes, questions, fluff
+    Preserve speaker's intent
     📜 classifier.py::extract_atomic_beliefs()"]
     
-    H --> I["🎯 Get Statement + Certainty
-    binary or hedged classification
+    H --> I["🎯 Classify Certainty
+    binary: absolute statements
+    hedged: contains uncertainty markers
     📜 prompts/atomic_belief_extraction.txt"]
     
     I --> J["🧠 Stage 2: Full Classification
-    26+ analysis questions via LLM
+    Q5-7: Conviction indicators
+    Q8-13: Belief type classification
+    Q14-15: Claim type
+    Q16-26: Tier determination
+    Q27-28: Scoring
+    Q29-31: Categorization
     📜 classifier.py::stage2_classify()"]
     
-    J --> K["🏆 Determine Primary Tier
-    Which of 10 tiers fits best
+    J --> K["🏆 Determine Primary Tier Q16-26
+    Core Axiom? Worldview Pillar?
+    Identity Value? Meta-Principle?
+    Cross-Domain Rule? Domain Belief?
+    Strategy? Claim? Opinion? Joke?
     📜 prompts/stage2_classify.txt"]
     J --> L["📊 Generate 10 Abstractions
-    Core Axioms → Loose Takes
+    Rewrite belief at each tier level
+    Tier 1 Core Axioms → Tier 10 Loose Takes
     📜 prompts/tier_abstraction.txt"]
-    J --> M["💪 Conviction & Stability
-    How strong + how stable 0-1
+    J --> M["💪 Conviction & Stability Q27-28
+    Q27: How strong is conviction? 0-1
+    Q28: How stable/long-term? 0-1
     📜 prompts/stage2_classify.txt"]
     J --> N["🌐 Score 4 Domains
-    Sci/tech, phil/religious, financial, political
+    Scientific/tech, philosophical/religious
+    Financial, political 0-1 each
     📜 prompts/stage2_classify.txt"]
-    J --> O["🏷️ Assign Category
-    epistemic, moral, political, etc.
+    J --> O["🏷️ Assign Category Q29-31
+    Q29: epistemic, moral, political, etc.
+    Q30: Parent hint higher-level belief
+    Q31: Defines outgroup? yes/no
     📜 prompts/stage2_classify.txt"]
     
     K --> P["📦 Compile Belief Record
