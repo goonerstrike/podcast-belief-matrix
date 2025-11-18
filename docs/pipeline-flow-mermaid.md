@@ -52,12 +52,24 @@ flowchart TD
     Certainty --> Stage2Header["🧠 Stage 2: Full Classification
     📜 classifier.py::stage2_classify()"]
     
-    Stage2Header --> ConvictionCat["💪 Conviction Indicators Q5-Q7"]
-    Stage2Header --> BeliefTypeCat["🎯 Belief Type Q8-Q13"]
-    Stage2Header --> ClaimTypeCat["📋 Claim Type Q14-Q15"]
-    Stage2Header --> TierCat["🏆 Tier Classification Q16-Q26"]
-    Stage2Header --> ScoringCat["📊 Scoring Q27-Q28"]
-    Stage2Header --> CategorizationCat["🏷️ Categorization Q29-Q31"]
+    Stage2Header --> ConvictionCat["💪 Conviction Indicators Q5-Q7
+    Measures how strongly held a belief is to prioritize
+    high-conviction beliefs for analysis"]
+    Stage2Header --> BeliefTypeCat["🎯 Belief Type Q8-Q13
+    Determines the fundamental nature and domain of belief
+    enabling filtering by philosophical/epistemic/moral/systemic types"]
+    Stage2Header --> ClaimTypeCat["📋 Claim Type Q14-Q15
+    Distinguishes testable predictions from casual takes
+    helping identify verifiable and falsifiable claims"]
+    Stage2Header --> TierCat["🏆 Tier Classification Q16-Q26
+    Places belief in 10-tier hierarchy from Core Axioms to Jokes
+    revealing relative importance and long-term stability"]
+    Stage2Header --> ScoringCat["📊 Scoring Q27-Q28
+    Quantifies conviction and stability as 0-1 scores
+    enabling ranking, comparison, and filtering of beliefs"]
+    Stage2Header --> CategorizationCat["🏷️ Categorization Q29-Q31
+    Assigns domain labels and identifies parent beliefs
+    enabling graph construction and belief network navigation"]
     
     ConvictionCat --> Q5["Q5: Does wording indicate strong/absolute
     commitment always/never/must/cannot?"]
@@ -132,7 +144,12 @@ flowchart TD
     MoreUtterances -->|No| DataFrame["🗂️ Create DataFrame
     📜 extractor.py::_to_dataframe()"]
     
-    DataFrame --> SaveOutput["💾 Save Output CSV/Parquet
+    DataFrame --> SaveOutput["💾 Save Output CSV Files
+    beliefs_multilevel_{episode_id}.csv
+    beliefs_deduplicated_{episode_id}.csv
+    beliefs_linked_{episode_id}.csv
+    belief_mapping_{episode_id}.csv
+    dashboard_{episode_id}.html
     📜 multilevel_extractor.py::save_output()"]
     
     SaveOutput --> Stats["📈 Calculate Summary Stats
