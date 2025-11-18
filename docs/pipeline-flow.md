@@ -131,73 +131,134 @@ flowchart TD
 
 ### Stage 1: Belief Filter
 
-Determines if an utterance contains a belief using 4 questions:
+Determines if an utterance contains a belief using 4 questions (exact LLM prompts):
 
-1. **Q1**: Contains identifiable belief or value judgment?
-2. **Q2**: Reveals what the speaker believes (even implicitly)?
-3. **Q3**: Is this belief endorsed or sympathetically discussed by the speaker?
-4. **Q4**: Does this reveal anything about the speaker's worldview or preferences?
+**Q1**: Does this text contain at least one identifiable belief or value judgment? (yes/no)
+- NO if it's purely logistical (ads, greetings, timestamps, housekeeping)
+- YES if it expresses any opinion, evaluation, or preference - even if also contains questions or fragments
+
+**Q2**: Does this statement reveal what the speaker believes, even implicitly? (yes/no)
+- NO if it's pure factual narration with no evaluative language
+- YES if it contains ANY opinion, evaluation, preference, or implied stance
+- YES for rhetorical questions that reveal beliefs ("Isn't X obviously wrong?")
+
+**Q3**: Is this belief likely endorsed or sympathetically discussed by the speaker? (yes/no)
+- NO if speaker is explicitly disagreeing or neutrally reporting facts
+- YES if speaker seems to agree, sympathize, or present favorably
+- YES even if not explicitly saying "I believe" - tone and context matter
+
+**Q4**: Does this belief reveal anything about the speaker's worldview or preferences? (yes/no)
+- NO if it's purely procedural (ads, "welcome to the show", time checks)
+- YES if it shows ANY preference, taste, opinion, or interpretive stance
+- YES even for casual preferences ("I like coffee") or aesthetic judgments
 
 **Passing criteria**: Q2, Q3, Q4 all YES OR confidence ≥ 0.6
 
 ### Atomic Belief Extraction (NEW)
 
-Extracts clean, standalone belief statements from each utterance:
-- Removes questions, quotes, narration, fluff
-- Preserves speaker's intent and framing
-- Classifies certainty: "binary" (absolute) or "hedged" (uncertain)
+Exact LLM instructions:
+
+**Task**: Extract ALL distinct beliefs/claims as atomic statements - clean, standalone, declarative statements that represent what the speaker believes or claims.
+
+**RULES:**
+1. Extract ALL distinct beliefs/claims from the statement
+2. Each belief must be a clear, standalone, atomic statement
+3. Remove quotes, questions, narration, or fluff
+4. Do NOT add new meaning or interpretation
+5. Preserve the speaker's intent and framing
+6. If no beliefs are present, return empty array
+
+**CERTAINTY CLASSIFICATION:**
+- **"binary"**: Absolute statement with no hedging ("Bitcoin is...", "X will happen")
+- **"hedged"**: Contains uncertainty markers ("might", "could", "probably", "I think")
 
 **Examples:**
-- Input: "I think Bitcoin is going to be huge"
-  - Atomic: "Bitcoin is going to be huge"
-  - Certainty: "hedged"
+- Input: "I think Bitcoin is going to be huge and it might replace the dollar someday."
+  - Output: [
+      {"belief": "Bitcoin is going to be huge", "certainty": "hedged"},
+      {"belief": "Bitcoin might replace the dollar", "certainty": "hedged"}
+    ]
 
-- Input: "Bitcoin follows a power law, not exponential growth"
-  - Atomic: "Bitcoin follows a power law"
-  - Certainty: "binary"
+- Input: "Bitcoin follows a power law, not exponential growth."
+  - Output: [
+      {"belief": "Bitcoin follows a power law", "certainty": "binary"},
+      {"belief": "Bitcoin does not follow exponential growth", "certainty": "binary"}
+    ]
+
+- Input: "What time is the conference?"
+  - Output: []
 
 ### Stage 2: Full Classification
 
-Comprehensive 27-question analysis (Q5-Q31):
+Comprehensive 27-question analysis (Q5-Q31) - exact LLM prompts:
 
-**Conviction Indicators (Q5-7):**
-- Q5: Strong/absolute commitment wording? ("always/never/must")
-- Q6: Speaker repeats or consistently relies on this?
-- Q7: Speaker defends/justifies against alternatives?
+**=== CONVICTION INDICATORS (Q5-7) ===**
 
-**Belief Type (Q8-13):**
-- Q8: About fundamental nature of reality/existence?
-- Q9: About truth/knowledge formation, trust, evaluation?
-- Q10: About broad moral principles (right/wrong)?
-- Q11: Cross-domain principle applied in multiple areas?
-- Q12: About large-scale systems/institutions?
-- Q13: Mainly about one specific domain?
+**Q5**: Does the wording indicate strong or absolute commitment (e.g., "always/never/must/cannot")? (yes/no)
 
-**Claim Type (Q14-15):**
-- Q14: Concrete, testable, time-bound claim?
-- Q15: Casual preference, joke, or musing?
+**Q6**: Does the surrounding context suggest the speaker repeats or consistently relies on this belief? (yes/no)
 
-**Tier Classification (Q16-26):**
-- Q16: Core Axiom? (foundational, cross-domain, defended)
-- Q17: Worldview Pillar? (big-picture frame)
-- Q18: Identity-Defining Value? ("this is who I am")
-- Q19: Meta-Principle? (rule for updating beliefs)
-- Q20: Cross-Domain Rule/Heuristic?
-- Q21: Stable Domain Belief? (consistent stance in one topic)
-- Q22: Repeated Strategy/Playbook?
-- Q23: Concrete Claim/Prediction?
-- Q24: Situational Opinion? (narrow context)
-- Q25: Loose Take/Joke/Aesthetic?
-- Q26: Single best-fitting tier?
+**Q7**: Does the speaker defend or justify this belief against alternatives or objections? (yes/no)
 
-**Scoring (Q27-28):**
-- Q27: Conviction score (0-1): How strongly held?
-- Q28: Stability score (0-1): How long-term/stable?
+**=== BELIEF TYPE (Q8-13) ===**
 
-**Categorization (Q29-31):**
-- Q29: Category (epistemic, moral, political, economic, etc.)
-- Q30: Parent hint (higher-level belief this relies on)
-- Q31: Defines outgroup? (rejects another belief/group)
+**Q8**: Is this belief about the fundamental nature of reality, human nature, purpose, or the structure of existence? (yes/no)
+
+**Q9**: Is this belief about how truth/knowledge should be formed, who/what to trust, or how to evaluate information? (yes/no)
+
+**Q10**: Is this belief about broad moral principles of right/wrong or good/bad that apply across many situations? (yes/no)
+
+**Q11**: Is this belief a cross-domain principle or rule the speaker applies in multiple areas of life? (yes/no)
+
+**Q12**: Is this belief primarily about large-scale systems/institutions (state, markets, money, religion, tech, law, etc.) that shapes many of their views? (yes/no)
+
+**Q13**: Is this belief mainly about one specific domain (e.g., Bitcoin, real estate, AI, health, education, geopolitics)? (yes/no)
+
+**=== CLAIM TYPE (Q14-15) ===**
+
+**Q14**: Is this statement a concrete, testable, or time-bound claim (prediction, number, causal claim, empirical assertion)? (yes/no)
+
+**Q15**: Is this statement best interpreted as a casual preference, offhand comment, joke, brand line, or exploratory musing? (yes/no)
+
+**=== TIER CLASSIFICATION (Q16-26) ===**
+
+**Q16**: Should this be labeled as a **Core Axiom** (foundational, cross-domain, defended, stable)? (yes/no)
+
+**Q17**: Should this be labeled as a **Worldview Pillar** (big-picture moral/political/economic/epistemic/spiritual frame)? (yes/no)
+
+**Q18**: Should this be labeled as an **Identity-Defining Value** ("this is who I am / we are")? (yes/no)
+
+**Q19**: Should this be labeled as a **Meta-Principle** (rule for how to choose/update beliefs)? (yes/no)
+
+**Q20**: Should this be labeled as a **Cross-Domain Rule or Heuristic** (action rule used in many contexts)? (yes/no)
+
+**Q21**: Should this be labeled as a **Stable Domain Belief** (consistent stance within one topic)? (yes/no)
+
+**Q22**: Should this be labeled as a **Repeated Strategy or Playbook** (tactic the speaker endorses/uses)? (yes/no)
+
+**Q23**: Should this be labeled as a **Concrete Claim or Prediction**? (yes/no)
+
+**Q24**: Should this be labeled as a **Situational Opinion tied to a narrow context**? (yes/no)
+
+**Q25**: Should this be labeled as a **Loose Take / Joke / Aesthetic Vibe**? (yes/no)
+
+**Q26**: What is the SINGLE BEST-FITTING tier? (choose ONE from Q16-25)
+
+**=== SCORING (Q27-28) ===**
+
+**Q27**: On a 0–1 scale, how strong is the speaker's conviction in this belief? (0.0-1.0)
+
+**Q28**: On a 0–1 scale, how stable/long-term does this belief appear given the context? (0.0-1.0)
+
+**=== CATEGORIZATION (Q29-31) ===**
+
+**Q29**: What is the single best-fitting category label for this belief?
+(Choose ONE: epistemic, moral, political, economic, spiritual, social, tech, health, bitcoin/finance, other)
+
+**Q30**: In one short phrase, what higher-level belief or axiom does this belief most likely instantiate or rely on?
+(This is the "parent_hint" - leave empty if this seems foundational)
+
+**Q31**: Does this belief explicitly reject or oppose another belief/group/position (i.e., define an in-group vs out-group)? (yes/no)
 
 ## Final Output Schema
 
