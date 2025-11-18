@@ -23,37 +23,35 @@ nano .env  # or use your preferred editor
 
 ```bash
 # Extract beliefs from test sample (720 words, ~$0.05-0.10)
-python run_extraction.py --transcript tests/test_sample.txt --cheap-mode
+python run_multilevel_extraction.py --transcript tests/test_sample.txt --levels 1 --cheap-mode
 
 # View results in formatted table
-python view_rankings.py output/beliefs_test_sample.csv
+python view_rankings.py output/beliefs_linked_test_sample.csv
 ```
 
 ## Expected Output
 
 ### Terminal Output:
 ```
-============================================================
-🎙️  Podcast Belief Extraction Pipeline
-============================================================
+================================================================================
+🌐 Multi-Level Podcast Belief Extraction Pipeline
+================================================================================
 
 ⚙️  Configuration:
    Transcript: tests/test_sample.txt
    Episode ID: test_sample
    Model: gpt-4o-mini
    Cheap mode: Yes (1000 words)
+   Levels: [1]
 
-🚀 Starting extraction...
-🔸 Cheap mode: Processing first 1000 words (17 utterances)
-📄 Parsed 17 utterances from 4 speakers
-🤖 Classifying statements...
+🚀 Starting multi-level extraction...
+📊 Level 1: Processing 17 chunks...
 ✅ Found 3 beliefs out of 17 statements
 
 📊 Summary:
-   Total beliefs: 3
-   Unique speakers: 2
-   Avg conviction: 0.75
-   Avg stability: 0.65
+   Total beliefs (raw): 3
+   After deduplication: 3
+   Final output: 3
 
 💰 Cost:
    Total tokens: 2,456
@@ -61,7 +59,9 @@ python view_rankings.py output/beliefs_test_sample.csv
 ```
 
 ### Generated Files:
-- `output/beliefs_test_sample.csv` - Full belief matrix
+- `output/beliefs_multilevel_test_sample.csv` - Raw beliefs
+- `output/beliefs_deduplicated_test_sample.csv` - After deduplication
+- `output/beliefs_linked_test_sample.csv` - Final with parent-child links
 - W&B Dashboard - Interactive visualizations (if enabled)
 
 ## View Rankings
@@ -95,11 +95,14 @@ python view_rankings.py output/beliefs_test_sample.csv --top 5
 # 1. Prepare your transcript (diarized format)
 #    SPEAKER_A | 00:00:00 | 00:00:26 | Statement text...
 
-# 2. Run cheap mode first (test)
-python run_extraction.py --transcript your_transcript.txt --cheap-mode
+# 2. Run cheap mode first (test with single-level)
+python run_multilevel_extraction.py --transcript your_transcript.txt --levels 1 --cheap-mode
 
-# 3. If satisfied, run full extraction
-python run_extraction.py --transcript your_transcript.txt --episode-id e_your_podcast_001
+# 3. If satisfied, run full multi-level extraction
+python run_multilevel_extraction.py --transcript your_transcript.txt --episode-id e_your_podcast_001
+
+# Or single-level only
+python run_multilevel_extraction.py --transcript your_transcript.txt --levels 1 --episode-id e_your_podcast_001
 ```
 
 ### Explore Advanced Features
@@ -143,7 +146,7 @@ OPENAI_API_KEY=sk-...
 ### W&B Not Working
 ```bash
 # Option 1: Disable W&B
-python run_extraction.py --transcript input.txt --no-wandb
+python run_multilevel_extraction.py --transcript input.txt --levels 1 --no-wandb
 
 # Option 2: Set W&B API key
 echo "WANDB_API_KEY=your-wandb-key" >> .env

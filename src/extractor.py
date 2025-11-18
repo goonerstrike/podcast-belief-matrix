@@ -55,7 +55,7 @@ class BeliefExtractor:
         
         # Classify utterances
         print(f"🤖 Classifying statements...")
-        classifications = self.classifier.classify_batch([u.to_dict() for u in utterances])
+        classifications = self.classifier.classify_batch([u.to_dict() for u in utterances], parallel=self.parallel)
         
         # Filter for beliefs only
         beliefs = [c for c in classifications if c.is_belief]

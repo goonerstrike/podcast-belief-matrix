@@ -128,25 +128,11 @@ cp .env.example .env
 
 ### Basic Usage
 
-#### Single-Level Extraction (Original)
-
-```bash
-# Extract beliefs from transcript
-python run_extraction.py --transcript tests/test_sample.txt --episode-id e_test_001
-
-# Cheap mode (test on first 1000 words)
-python run_extraction.py --transcript input.txt --cheap-mode
-
-# Skip W&B logging
-python run_extraction.py --transcript input.txt --no-wandb
-
-# Custom output format
-python run_extraction.py --transcript input.txt --format json --output beliefs.json
-```
-
-#### Multi-Level Extraction (NEW!)
+#### Multi-Level Extraction
 
 Process transcripts at multiple abstraction levels to capture beliefs that only emerge at different scales:
+
+For single-level extraction, use `--levels 1`.
 
 ```bash
 # Multi-level extraction with default exponential levels [1,2,4,8,16,32,64,128,256,512]
@@ -360,8 +346,7 @@ podcast-belief-extraction/
 │   └── test_sample.txt             # 720-word test transcript
 ├── output/                          # Generated belief matrices
 │   └── analysis/                    # Analytics outputs (NEW!)
-├── run_extraction.py               # Single-level CLI script
-├── run_multilevel_extraction.py    # Multi-level CLI script (NEW!)
+├── run_multilevel_extraction.py    # Multi-level CLI script (use --levels 1 for single-level)
 ├── analyze_beliefs.py              # Analytics CLI script (NEW!)
 ├── view_rankings.py                # View formatted rankings with weights
 ├── dashboard_analytics.html        # Interactive web dashboard (NEW!)
